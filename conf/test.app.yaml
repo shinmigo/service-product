@@ -1,0 +1,20 @@
+app: !include app.yaml
+
+mysql:
+  host: 127.0.0.1:3306
+  user: root
+  password: 123456
+  database: test
+
+redis:
+  host: 127.0.0.1:6379
+  password: xxx
+  databse: 10
+
+etcd:
+  host:
+    - 127.0.0.1:2379
+
+grpc:
+  name: project/product
+  host: 127.0.0.1:5556

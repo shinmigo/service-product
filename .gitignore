@@ -1,0 +1,15 @@
+service-product.exe
+service-product.exe*
+service-product
+publish.sh
+runtime/*
+debug
+*/.settings/
+*/.DS_Store
+.DS_Store
+*/.idea/
+.idea/
+.vscode
+.classpath
+.project
+.settings
