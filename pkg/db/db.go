@@ -19,7 +19,7 @@ func GetDbConnect() (*gorm.DB, error) {
 	db, err := gorm.Open("mysql", dbConStr)
 	Conn = db
 
-	if gin.Mode() == "dev" || gin.Mode() == "test" {
+	if gin.Mode() == "debug" || gin.Mode() == "test" {
 		db.LogMode(true)
 	}
 

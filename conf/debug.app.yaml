@@ -1,11 +1,11 @@
 mysql:
-  host: 127.0.0.1:3306
+  host: 10.32.5.87:3306
   user: root
-  password: 123456
-  database: xiudianbao2
+  password: 4Ut8urkXVC*khX2K
+  database: goshop_product
 
 redis:
-  host: 127.0.0.1:6379
+  host: 10.32.5.87:6379
   password:
   databse: 10
 
