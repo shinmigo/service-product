@@ -2,9 +2,11 @@ package rpc
 
 import (
 	"github.com/shinmigo/pb/productpb"
-	
-	"golang.org/x/net/context"
+
 	"goshop/service-product/model/tag"
+	"goshop/service-product/pkg/db"
+
+	"golang.org/x/net/context"
 )
 
 type Tag struct {
@@ -14,79 +16,89 @@ func NewTag() *Tag {
 	return &Tag{}
 }
 
-func (t *Tag) AddTag(ctx context.Context, req *productpb.AddTagRequest) (*productpb.AddTagResponse, error) {
+func (t *Tag) AddTag(ctx context.Context, req *productpb.AddTagReq) (*productpb.AddTagRes, error) {
 	aul := tag.Tag{
 		StoreId:   req.Tag.StoreId,
 		Name:      req.Tag.Name,
 		CreatedBy: req.Tag.AdminId,
 		UpdatedBy: req.Tag.AdminId,
 	}
-	
-	tagId, err := tag.AddTag(&aul)
-	
-	return &productpb.AddTagResponse{
-		TagId: tagId,
-	}, err
+
+	if err := db.Conn.Table(tag.GetTableName()).Create(&aul).Error; err != nil {
+		return nil, err
+	}
+
+	return &productpb.AddTagRes{
+		TagId: aul.TagId,
+	}, nil
 }
 
-func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagRequest) (*productpb.EditTagResponse, error) {
+func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagReq) (*productpb.EditTagRes, error) {
+	tagInfo, err := tag.GetOneByTagId(req.Tag.TagId)
+	if err != nil {
+		return nil, err
+	}
+
 	aul := tag.Tag{
 		StoreId:   req.Tag.StoreId,
 		Name:      req.Tag.Name,
 		UpdatedBy: req.Tag.AdminId,
 	}
-	
-	res := int32(0)
-	err := tag.EditTag(req.Tag.TagId, aul)
-	if err == nil {
-		res = 1
+
+	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", tagInfo.TagId).Updates(&aul).Error; err != nil {
+		return nil, err
 	}
-	return &productpb.EditTagResponse{
-		Updated: res,
-	}, err
+
+	return &productpb.EditTagRes{
+		Updated: 1,
+	}, nil
 }
 
-func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagRequest) (*productpb.DelTagResponse, error) {
-	res := int32(0)
-	err := tag.DelTag(req.TagId)
-	if err == nil {
-		res = 1
+func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*productpb.DelTagRes, error) {
+	tagInfo, err := tag.GetOneByTagId(req.TagId)
+	if err != nil {
+		return nil, err
 	}
-	return &productpb.DelTagResponse{
-		Deleted: res,
-	}, err
+
+	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", tagInfo.TagId).Delete(tag.Tag{}).Error; err != nil {
+		return nil, err
+	}
+
+	return &productpb.DelTagRes{
+		Deleted: 1,
+	}, nil
 }
 
-func (t *Tag) ReadTag(ctx context.Context, req *productpb.ReadTagRequest) (*productpb.ReadTagResponse, error) {
+func (t *Tag) ReadTag(ctx context.Context, req *productpb.ReadTagReq) (*productpb.ReadTagRes, error) {
 	row, err := tag.GetOneByTagId(req.TagId)
 	if err != nil {
 		return nil, err
 	}
-	
-	var td productpb.TagInfo
-	td.TagId = row.TagId
-	td.Name = row.Name
-	
-	return &productpb.ReadTagResponse{
-		Tag: &td,
-	}, err
+
+	return &productpb.ReadTagRes{
+		Tag: &productpb.TagInfo{
+			TagId: row.TagId,
+			Name:  row.Name,
+		},
+	}, nil
 }
 
-func (t *Tag) ReadTags(ctx context.Context, req *productpb.ReadTagsRequest) (*productpb.ReadTagsResponse, error) {
+func (t *Tag) ReadTags(ctx context.Context, req *productpb.ReadTagsReq) (*productpb.ReadTagsRes, error) {
 	list := []*productpb.TagInfo{}
-	
+
 	rows, err := tag.GetTags(1, 10)
 	if err != nil {
 		return nil, err
 	}
-	for k := range *rows {
+
+	for k := range rows {
 		list = append(list, &productpb.TagInfo{
-			TagId: (*rows)[k].TagId,
-			Name:  (*rows)[k].Name,
+			TagId: rows[k].TagId,
+			Name:  rows[k].Name,
 		})
 	}
-	
-	return &productpb.ReadTagsResponse{
+
+	return &productpb.ReadTagsRes{
 		Tags: list,
-	}, err
+	}, nil
 }

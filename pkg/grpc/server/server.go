@@ -40,6 +40,7 @@ func Run() {
 	//服务
 	productpb.RegisterHelloServiceServer(g, rpc.NewHello())
 	productpb.RegisterTagServiceServer(g, rpc.NewTag())
+	productpb.RegisterParamServiceServer(g, rpc.NewParam())
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGQUIT)
