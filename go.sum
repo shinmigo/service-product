@@ -280,6 +280,8 @@ github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/shinmigo/pb v0.0.0-20200722100848-43efafe8fa47 h1:HrRNK3fdWUJG/n1nAp/36feRV4TEap4KvFG/r/oJy2s=
 github.com/shinmigo/pb v0.0.0-20200722100848-43efafe8fa47/go.mod h1:UYGDfX6q55shSf95Mn1LE5C/rKde0su7DBf0W7QKeaY=
+github.com/shinmigo/pb v0.0.0-20200730062048-a3545a986341 h1:17EWAk0nw89MtKWCwM3y1/6bTz+DOXyhzzO4Cxecy8I=
+github.com/shinmigo/pb v0.0.0-20200730062048-a3545a986341/go.mod h1:sE6q+pYXPmwYntosms0U/zV12SDdDiOhJTFyJRl4bTE=
 github.com/sirupsen/logrus v1.2.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.2 h1:SPIRibHv4MatM3XXNO2BJeFLZwZ2LvZgfQ5+UNI2im4=
 github.com/sirupsen/logrus v1.4.2/go.mod h1:tLMulIdttU9McNUspp0xgXVQah82FyeX6MwdIuYE2rE=

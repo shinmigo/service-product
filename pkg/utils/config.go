@@ -36,4 +36,5 @@ type Etcd struct {
 type Grpc struct {
 	Name string
 	Host string
+	Port int
 }

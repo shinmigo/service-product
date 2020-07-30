@@ -6,25 +6,51 @@ import (
 	"goshop/service-product/pkg/utils"
 	"goshop/service-product/service/rpc"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/shinmigo/pb/productpb"
 
 	"google.golang.org/grpc"
 )
 
-func Run() {
-	var (
-		grpcServiceName = utils.C.Grpc.Name
-		grpcAddr        = utils.C.Grpc.Host
-	)
+func Run(grpcIsTrue chan bool) {
+	var grpcServiceName = utils.C.Grpc.Name
+	var grpcAddr string
+	var l net.Listener
 
-	l, err := net.Listen("tcp", grpcAddr)
-	if err != nil {
-		log.Fatalf("开启grpc服务失败: %s", err)
+	for {
+		seed := rand.New(rand.NewSource(time.Now().UnixNano()))
+		port := utils.C.Grpc.Port + seed.Intn(5000)
+		grpcAddr = utils.C.Grpc.Host + ":"+ strconv.Itoa(port)
+		var s bool
+
+		func(){
+			defer func() {
+				if err := recover(); err != nil {
+					log.Printf("%v, 端口是：%d", err, port)
+				}
+			}()
+
+			var err error
+			l, err = net.Listen("tcp", grpcAddr)
+			if err != nil {
+				panic("开启grpc服务失败")
+			} else {
+				s = true
+			}
+		}()
+
+		if s {
+			break
+		} else {
+			time.Sleep(30 * time.Millisecond)
+		}
 	}
 
 	g := grpc.NewServer()
@@ -55,8 +81,10 @@ func Run() {
 	}()
 
 	log.Printf("grpc服务开启成功, name: %s, port: %s \n", grpcServiceName, grpcAddr)
+	grpcIsTrue <- true
 
 	if err := g.Serve(l); err != nil {
 		log.Fatalf("开启grpc服务失败2: %s", err)
 	}
+
 }

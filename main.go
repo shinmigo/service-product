@@ -2,6 +2,7 @@ package main
 
 import (
 	"goshop/service-product/pkg/core/routerhelper"
+	grpcserver "goshop/service-product/pkg/grpc/server"
 	"log"
 	"time"
 
@@ -44,8 +45,11 @@ func main() {
 		spew.Dump(err, "redis")
 	}()
 
-	initService()
+	grpcIsTrue := make(chan bool)
+	go grpcserver.Run(grpcIsTrue)
+	<- grpcIsTrue
 
+	initService()
 	log.Fatal(utils.R.Run(utils.C.Base.Webhost))
 
 }

@@ -17,4 +17,5 @@ etcd:
 
 grpc:
   name: project/product
-  host: 127.0.0.1:5556
+  host:
+  port: 10000
