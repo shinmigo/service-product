@@ -16,7 +16,7 @@ const (
 type Param struct {
 	ParamId   uint64 `gorm:"PRIMARY_KEY"`
 	StoreId   uint64
-	TypeId    uint64
+	KindId    uint64
 	Name      string
 	Type      int
 	Sort      uint64
@@ -49,11 +49,11 @@ func GetOneByParamId(ParamId uint64) (*ParamInfo, error) {
 	if ParamId == 0 {
 		return nil, fmt.Errorf("param_id is null")
 	}
-	row := new(ParamInfo)
+	row := &ParamInfo{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Where("param_id = ?", ParamId).
-		First(&row).Error
+		First(row).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("err: %v", err)

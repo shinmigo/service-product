@@ -20,27 +20,32 @@ func NewSpec() *Spec {
 }
 
 func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*productpb.AddSpecRes, error) {
+	var err error
+
 	tx := db.Conn.Begin()
+	if err = tx.Error; err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
-	}()
 
-	if err := tx.Error; err != nil {
-		return nil, err
-	}
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
 	aul := spec.Spec{
 		StoreId:   req.Spec.StoreId,
-		TypeId:    req.Spec.TypeId,
+		KindId:    req.Spec.KindId,
 		Name:      req.Spec.Name,
 		Sort:      req.Spec.Sort,
 		CreatedBy: req.Spec.AdminId,
 		UpdatedBy: req.Spec.AdminId,
 	}
-	if err := tx.Table(spec.GetTableName()).Create(&aul).Error; err != nil {
-		tx.Rollback()
+	if err = tx.Table(spec.GetTableName()).Create(&aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -48,20 +53,19 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 		now := time.Now()
 		sqlStr := "INSERT INTO spec_value (spec_id, content, created_by, updated_by, created_at, updated_at) VALUES "
 		vals := []interface{}{}
-		const rowSQL = "(?, ?, ?, ?, ?, ?)"
+		rowSQL := "(?, ?, ?, ?, ?, ?)"
 		var inserts []string
 		for k := range req.Spec.Contents {
 			inserts = append(inserts, rowSQL)
 			vals = append(vals, aul.SpecId, req.Spec.Contents[k], req.Spec.AdminId, req.Spec.AdminId, now, now)
 		}
 		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err := tx.Exec(sqlStr, vals...).Error; err != nil {
-			tx.Rollback()
+		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
 			return nil, err
 		}
 	}
 
-	if err := tx.Commit().Error; err != nil {
+	if err = tx.Commit().Error; err != nil {
 		return nil, err
 	}
 
@@ -71,36 +75,40 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 }
 
 func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*productpb.EditSpecRes, error) {
-	specInfo, err := spec.GetOneBySpecId(req.Spec.SpecId)
+	var err error
+	var specInfo *spec.SpecInfo
+	specInfo, err = spec.GetOneBySpecId(req.Spec.SpecId)
 	if err != nil {
 		return nil, err
 	}
 
 	tx := db.Conn.Begin()
+	if err = tx.Error; err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
-	}()
 
-	if err := tx.Error; err != nil {
-		return nil, err
-	}
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
 
 	aul := spec.Spec{
 		StoreId:   req.Spec.StoreId,
-		TypeId:    req.Spec.TypeId,
+		KindId:    req.Spec.KindId,
 		Name:      req.Spec.Name,
 		Sort:      req.Spec.Sort,
 		UpdatedBy: req.Spec.AdminId,
 	}
-	if err := tx.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Updates(&aul).Error; err != nil {
-		tx.Rollback()
+	if err = tx.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Updates(&aul).Error; err != nil {
 		return nil, err
 	}
 
-	if err := tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
-		tx.Rollback()
+	if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -108,15 +116,14 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 		now := time.Now()
 		sqlStr := "INSERT INTO spec_value (spec_id, content, created_by, updated_by, created_at, updated_at) VALUES "
 		vals := []interface{}{}
-		const rowSQL = "(?, ?, ?, ?, ?, ?)"
+		rowSQL := "(?, ?, ?, ?, ?, ?)"
 		var inserts []string
 		for k := range req.Spec.Contents {
 			inserts = append(inserts, rowSQL)
 			vals = append(vals, specInfo.SpecId, req.Spec.Contents[k], specInfo.CreatedBy, req.Spec.AdminId, specInfo.CreatedAt, now)
 		}
 		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err := tx.Exec(sqlStr, vals...).Error; err != nil {
-			tx.Rollback()
+		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -131,28 +138,34 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 }
 
 func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*productpb.DelSpecRes, error) {
-	specInfo, err := spec.GetOneBySpecId(req.SpecId)
+	var err error
+	var specInfo *spec.SpecInfo
+
+	specInfo, err = spec.GetOneBySpecId(req.SpecId)
 	if err != nil {
 		return nil, err
 	}
+
 	tx := db.Conn.Begin()
+	if err = tx.Error; err != nil {
+		return nil, err
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
+
+		if err != nil {
+			tx.Rollback()
+		}
 	}()
 
-	if err := tx.Error; err != nil {
+	if err = tx.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec.Spec{}).Error; err != nil {
 		return nil, err
 	}
 
-	if err := db.Conn.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec.Spec{}).Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	if err := tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
-		tx.Rollback()
+	if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -216,6 +229,6 @@ func (s *Spec) ReadSpecs(ctx context.Context, req *productpb.ReadSpecsReq) (*pro
 	}
 
 	return &productpb.ReadSpecsRes{
-		Spec: list,
+		Specs: list,
 	}, nil
 }

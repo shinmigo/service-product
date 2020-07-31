@@ -82,10 +82,10 @@ func Run(grpcIsTrue chan bool) {
 	}
 
 	//服务
-	productpb.RegisterHelloServiceServer(g, rpc.NewHello())
 	productpb.RegisterTagServiceServer(g, rpc.NewTag())
 	productpb.RegisterParamServiceServer(g, rpc.NewParam())
 	productpb.RegisterSpecServiceServer(g, rpc.NewSpec())
+	productpb.RegisterKindServiceServer(g, rpc.NewKind())
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGQUIT)

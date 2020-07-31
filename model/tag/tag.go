@@ -35,11 +35,11 @@ func GetOneByTagId(tagId uint64) (*TagInfo, error) {
 	if tagId == 0 {
 		return nil, fmt.Errorf("tag_id is null")
 	}
-	row := new(TagInfo)
+	row := &TagInfo{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Where("tag_id = ?", tagId).
-		First(&row).Error
+		First(row).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("err: %v", err)

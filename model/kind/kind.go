@@ -1,4 +1,4 @@
-package spec
+package kind
 
 import (
 	"fmt"
@@ -7,44 +7,43 @@ import (
 	"goshop/service-product/pkg/db"
 )
 
-type Spec struct {
-	SpecId    uint64 `gorm:"PRIMARY_KEY"`
+type Kind struct {
+	KindId    uint64 `gorm:"PRIMARY_KEY"`
 	StoreId   uint64
-	KindId    uint64
 	Name      string
-	Sort      uint64
+	ParamQty  uint64
+	SpecQty   uint64
 	CreatedBy uint64
 	UpdatedBy uint64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-type SpecInfo struct {
-	SpecId    uint64    `json:"spec_id"`
-	Name      string    `json:"name"`
-	Sort      uint64    `json:"sort"`
-	CreatedBy uint64    `json:"-"`
-	CreatedAt time.Time `json:"-"`
+type KindInfo struct {
+	KindId   uint64 `json:"kind_id"`
+	Name     string `json:"name"`
+	ParamQty uint64 `json:"param_qty"`
+	SpecQty  uint64 `json:"spec_qty"`
 }
 
 func GetTableName() string {
-	return "spec"
+	return "kind"
 }
 
 func GetField() []string {
 	return []string{
-		"spec_id", "name", "sort", "created_by", "created_at",
+		"kind_id", "name", "param_qty", "spec_qty",
 	}
 }
 
-func GetOneBySpecId(SpecId uint64) (*SpecInfo, error) {
-	if SpecId == 0 {
-		return nil, fmt.Errorf("spec_id is null")
+func GetOneByKindId(KindId uint64) (*KindInfo, error) {
+	if KindId == 0 {
+		return nil, fmt.Errorf("kind_id is null")
 	}
-	row := &SpecInfo{}
+	row := &KindInfo{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
-		Where("spec_id = ?", SpecId).
+		Where("kind_id = ?", KindId).
 		First(row).Error
 
 	if err != nil {
@@ -53,8 +52,8 @@ func GetOneBySpecId(SpecId uint64) (*SpecInfo, error) {
 	return row, nil
 }
 
-func GetSpecs(page, pageSize int64) ([]*SpecInfo, error) {
-	rows := []*SpecInfo{}
+func GetKinds(page, pageSize int64) ([]*KindInfo, error) {
+	rows := []*KindInfo{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Offset((page - 1) * pageSize).
