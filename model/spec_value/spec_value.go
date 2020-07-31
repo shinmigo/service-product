@@ -1,4 +1,4 @@
-package param_value
+package spec_value
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"goshop/service-product/pkg/db"
 )
 
-type ParamValue struct {
-	ParamId   uint64
+type SpecValue struct {
+	SpecId    uint64
 	Content   string
 	CreatedBy uint64
 	UpdatedBy uint64
@@ -16,26 +16,26 @@ type ParamValue struct {
 	UpdatedAt time.Time
 }
 
-type ParamContent struct {
-	ParamId uint64 `json:"param_id"`
+type SpecContent struct {
+	SpecId  uint64 `json:"spec_id"`
 	Content string `json:"content"`
 }
 
 func GetTableName() string {
-	return "param_value"
+	return "spec_value"
 }
 
 func GetField() []string {
 	return []string{
-		"param_id", "content",
+		"spec_id", "content",
 	}
 }
 
-func GetContentsByParamIds(paramIds []uint64) (map[uint64][]string, error) {
-	rows := []*ParamContent{}
+func GetContentsBySpecIds(specIds []uint64) (map[uint64][]string, error) {
+	rows := []*SpecContent{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
-		Where("param_id in (?)", paramIds).
+		Where("spec_id in (?)", specIds).
 		Find(&rows).Error
 
 	if err != nil {
@@ -44,7 +44,7 @@ func GetContentsByParamIds(paramIds []uint64) (map[uint64][]string, error) {
 
 	list := make(map[uint64][]string)
 	for k := range rows {
-		list[rows[k].ParamId] = append(list[rows[k].ParamId], rows[k].Content)
+		list[rows[k].SpecId] = append(list[rows[k].SpecId], rows[k].Content)
 	}
 	return list, nil
 }
