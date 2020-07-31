@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,33 +24,50 @@ func Run(grpcIsTrue chan bool) {
 	var grpcServiceName = utils.C.Grpc.Name
 	var grpcAddr string
 	var l net.Listener
+	var isFixedPort bool
 
-	for {
-		seed := rand.New(rand.NewSource(time.Now().UnixNano()))
-		port := utils.C.Grpc.Port + seed.Intn(5000)
-		grpcAddr = utils.C.Grpc.Host + ":"+ strconv.Itoa(port)
-		var s bool
+	if len(utils.C.Grpc.Host) > 0 {
+		buf := strings.Split(utils.C.Grpc.Host, ":")
+		if len(buf) > 1 {
+			grpcAddr = utils.C.Grpc.Host
+			isFixedPort = true
+		}
+	}
 
-		func(){
-			defer func() {
-				if err := recover(); err != nil {
-					log.Printf("%v, 端口是：%d", err, port)
+	if isFixedPort {
+		var err error
+		l, err = net.Listen("tcp", grpcAddr)
+		if err != nil {
+			log.Fatalf("开启grpc服务失败: %s", err)
+		}
+	} else {
+		for {
+			seed := rand.New(rand.NewSource(time.Now().UnixNano()))
+			port := utils.C.Grpc.Port + seed.Intn(5000)
+			grpcAddr = utils.C.Grpc.Host + ":" + strconv.Itoa(port)
+			var s bool
+
+			func() {
+				defer func() {
+					if err := recover(); err != nil {
+						log.Printf("%v, 端口是：%d", err, port)
+					}
+				}()
+
+				var err error
+				l, err = net.Listen("tcp", grpcAddr)
+				if err != nil {
+					panic("开启grpc服务失败")
+				} else {
+					s = true
 				}
 			}()
 
-			var err error
-			l, err = net.Listen("tcp", grpcAddr)
-			if err != nil {
-				panic("开启grpc服务失败")
+			if s {
+				break
 			} else {
-				s = true
+				time.Sleep(30 * time.Millisecond)
 			}
-		}()
-
-		if s {
-			break
-		} else {
-			time.Sleep(30 * time.Millisecond)
 		}
 	}
 

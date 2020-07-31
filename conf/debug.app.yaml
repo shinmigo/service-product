@@ -15,5 +15,6 @@ etcd:
 
 grpc:
   name: project/product
-  host:
+  # host如果指定了端口，那么端口就是固定的，格式可以是：127.0.0.1:5556或:6688, 否则会动态生成
+  host: 127.0.0.1
   port: 10000
