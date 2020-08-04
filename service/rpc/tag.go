@@ -34,8 +34,7 @@ func (t *Tag) AddTag(ctx context.Context, req *productpb.AddTagReq) (*productpb.
 }
 
 func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagReq) (*productpb.EditTagRes, error) {
-	tagInfo, err := tag.GetOneByTagId(req.Tag.TagId)
-	if err != nil {
+	if _, err := tag.GetOneByTagId(req.Tag.TagId); err != nil {
 		return nil, err
 	}
 
@@ -45,7 +44,7 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagReq) (*productp
 		UpdatedBy: req.Tag.AdminId,
 	}
 
-	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", tagInfo.TagId).Updates(&aul).Error; err != nil {
+	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", req.Tag.TagId).Updates(&aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -55,12 +54,11 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagReq) (*productp
 }
 
 func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*productpb.DelTagRes, error) {
-	tagInfo, err := tag.GetOneByTagId(req.TagId)
-	if err != nil {
+	if _, err := tag.GetOneByTagId(req.TagId); err != nil {
 		return nil, err
 	}
 
-	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", tagInfo.TagId).Delete(tag.Tag{}).Error; err != nil {
+	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", req.TagId).Delete(tag.Tag{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -84,13 +82,22 @@ func (t *Tag) ReadTag(ctx context.Context, req *productpb.ReadTagReq) (*productp
 }
 
 func (t *Tag) ReadTags(ctx context.Context, req *productpb.ReadTagsReq) (*productpb.ReadTagsRes, error) {
-	list := []*productpb.TagInfo{}
+	var page uint64 = 1
+	if req.Page > 0 {
+		page = req.Page
+	}
 
-	rows, err := tag.GetTags(1, 10)
+	var pageSize uint64 = 10
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
+
+	rows, err := tag.GetTags(page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
+	list := make([]*productpb.TagInfo, 0, len(rows))
 	for k := range rows {
 		list = append(list, &productpb.TagInfo{
 			TagId: rows[k].TagId,

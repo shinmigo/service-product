@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"strings"
 	"time"
 
 	"github.com/shinmigo/pb/productpb"
@@ -21,12 +20,6 @@ func NewParam() *Param {
 	return &Param{}
 }
 
-var paramType = map[string]int{
-	"Text":     param.ParamTypeText,
-	"Radio":    param.ParamTypeRadio,
-	"Checkbox": param.ParamTypeCheckbox,
-}
-
 func (p *Param) AddParam(ctx context.Context, req *productpb.AddParamReq) (*productpb.AddParamRes, error) {
 	var err error
 	tx := db.Conn.Begin()
@@ -37,6 +30,7 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.AddParamReq) (*prod
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -48,7 +42,7 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.AddParamReq) (*prod
 		StoreId:   req.Param.StoreId,
 		KindId:    req.Param.KindId,
 		Name:      req.Param.Name,
-		Type:      paramType[req.Param.Type.String()],
+		Type:      int32(req.Param.Type),
 		Sort:      req.Param.Sort,
 		CreatedBy: req.Param.AdminId,
 		UpdatedBy: req.Param.AdminId,
@@ -57,18 +51,22 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.AddParamReq) (*prod
 		return nil, err
 	}
 
-	if len(req.Param.Contents) > 0 {
+	contentLen := len(req.Param.Contents)
+	if contentLen > 0 {
 		now := time.Now()
-		sqlStr := "INSERT INTO param_value (param_id, content, created_by, updated_by, created_at, updated_at) VALUES "
-		vals := []interface{}{}
-		rowSQL := "(?, ?, ?, ?, ?, ?)"
-		var inserts []string
+		params := make([]*param_value.ParamValue, 0, contentLen)
 		for k := range req.Param.Contents {
-			inserts = append(inserts, rowSQL)
-			vals = append(vals, aul.ParamId, req.Param.Contents[k], req.Param.AdminId, req.Param.AdminId, now, now)
+			buf := &param_value.ParamValue{
+				ParamId:   aul.ParamId,
+				Content:   req.Param.Contents[k],
+				CreatedBy: req.Param.AdminId,
+				UpdatedBy: req.Param.AdminId,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
+			params = append(params, buf)
 		}
-		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
+		if err = param_value.BatchInsert(tx, params); err != nil {
 			return nil, err
 		}
 	}
@@ -99,6 +97,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -110,7 +109,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 		StoreId:   req.Param.StoreId,
 		KindId:    req.Param.KindId,
 		Name:      req.Param.Name,
-		Type:      paramType[req.Param.Type.String()],
+		Type:      int32(req.Param.Type),
 		Sort:      req.Param.Sort,
 		UpdatedBy: req.Param.AdminId,
 	}
@@ -122,18 +121,22 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 		return nil, err
 	}
 
-	if len(req.Param.Contents) > 0 {
+	contentLen := len(req.Param.Contents)
+	if contentLen > 0 {
 		now := time.Now()
-		sqlStr := "INSERT INTO param_value (param_id, content, created_by, updated_by, created_at, updated_at) VALUES "
-		vals := []interface{}{}
-		rowSQL := "(?, ?, ?, ?, ?, ?)"
-		var inserts []string
+		params := make([]*param_value.ParamValue, 0, contentLen)
 		for k := range req.Param.Contents {
-			inserts = append(inserts, rowSQL)
-			vals = append(vals, paramInfo.ParamId, req.Param.Contents[k], paramInfo.CreatedBy, req.Param.AdminId, paramInfo.CreatedAt, now)
+			buf := &param_value.ParamValue{
+				ParamId:   paramInfo.ParamId,
+				Content:   req.Param.Contents[k],
+				CreatedBy: req.Param.AdminId,
+				UpdatedBy: req.Param.AdminId,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
+			params = append(params, buf)
 		}
-		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
+		if err = param_value.BatchInsert(tx, params); err != nil {
 			return nil, err
 		}
 	}
@@ -149,10 +152,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 
 func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*productpb.DelParamRes, error) {
 	var err error
-	var paramInfo *param.ParamInfo
-
-	paramInfo, err = param.GetOneByParamId(req.ParamId)
-	if err != nil {
+	if _, err = param.GetOneByParamId(req.ParamId); err != nil {
 		return nil, err
 	}
 	tx := db.Conn.Begin()
@@ -163,6 +163,7 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*prod
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -170,11 +171,11 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*prod
 		}
 	}()
 
-	if err = tx.Table(param.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Delete(param.Param{}).Error; err != nil {
+	if err = tx.Table(param.GetTableName()).Where("param_id = ?", req.ParamId).Delete(param.Param{}).Error; err != nil {
 		return nil, err
 	}
 
-	if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
+	if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", req.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -193,8 +194,8 @@ func (p *Param) ReadParam(ctx context.Context, req *productpb.ReadParamReq) (*pr
 		return nil, err
 	}
 
-	var contents []string
 	getContents, err := param_value.GetContentsByParamIds([]uint64{row.ParamId})
+	contents := make([]string, 0, len(getContents))
 	if _, ok := getContents[row.ParamId]; ok {
 		contents = getContents[row.ParamId]
 	}
@@ -203,7 +204,7 @@ func (p *Param) ReadParam(ctx context.Context, req *productpb.ReadParamReq) (*pr
 		Param: &productpb.ParamInfo{
 			ParamId:  row.ParamId,
 			Name:     row.Name,
-			Type:     productpb.ParamType(row.Type - 1),
+			Type:     productpb.ParamType(row.Type),
 			Sort:     row.Sort,
 			Contents: contents,
 		},
@@ -211,29 +212,39 @@ func (p *Param) ReadParam(ctx context.Context, req *productpb.ReadParamReq) (*pr
 }
 
 func (p *Param) ReadParams(ctx context.Context, req *productpb.ReadParamsReq) (*productpb.ReadParamsRes, error) {
-	list := []*productpb.ParamInfo{}
+	var page uint64 = 1
+	if req.Page > 0 {
+		page = req.Page
+	}
 
-	rows, err := param.GetParams(1, 10)
+	var pageSize uint64 = 10
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
+
+	rows, err := param.GetParams(page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	var paramIds []uint64
+	rowLen := len(rows)
+	paramIds := make([]uint64, 0, rowLen)
 	for k := range rows {
 		paramIds = append(paramIds, rows[k].ParamId)
 	}
 
-	getContents, err := param_value.GetContentsByParamIds(paramIds)
+	getContents, _ := param_value.GetContentsByParamIds(paramIds)
 
+	list := make([]*productpb.ParamInfo, 0, rowLen)
 	for k := range rows {
-		var contents []string
+		contents := make([]string, 0, 8)
 		if _, ok := getContents[rows[k].ParamId]; ok {
 			contents = getContents[rows[k].ParamId]
 		}
 		list = append(list, &productpb.ParamInfo{
 			ParamId:  rows[k].ParamId,
 			Name:     rows[k].Name,
-			Type:     productpb.ParamType(rows[k].Type - 1),
+			Type:     productpb.ParamType(rows[k].Type),
 			Sort:     rows[k].Sort,
 			Contents: contents,
 		})

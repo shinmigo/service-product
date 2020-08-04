@@ -3,7 +3,6 @@ package rpc
 import (
 	"goshop/service-product/model/spec"
 	"goshop/service-product/pkg/db"
-	"strings"
 	"time"
 
 	"goshop/service-product/model/spec_value"
@@ -30,6 +29,7 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -49,18 +49,22 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 		return nil, err
 	}
 
-	if len(req.Spec.Contents) > 0 {
+	contentLen := len(req.Spec.Contents)
+	if contentLen > 0 {
 		now := time.Now()
-		sqlStr := "INSERT INTO spec_value (spec_id, content, created_by, updated_by, created_at, updated_at) VALUES "
-		vals := []interface{}{}
-		rowSQL := "(?, ?, ?, ?, ?, ?)"
-		var inserts []string
+		specs := make([]*spec_value.SpecValue, 0, contentLen)
 		for k := range req.Spec.Contents {
-			inserts = append(inserts, rowSQL)
-			vals = append(vals, aul.SpecId, req.Spec.Contents[k], req.Spec.AdminId, req.Spec.AdminId, now, now)
+			buf := &spec_value.SpecValue{
+				SpecId:    aul.SpecId,
+				Content:   req.Spec.Contents[k],
+				CreatedBy: req.Spec.AdminId,
+				UpdatedBy: req.Spec.AdminId,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
+			specs = append(specs, buf)
 		}
-		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
+		if err = spec_value.BatchInsert(tx, specs); err != nil {
 			return nil, err
 		}
 	}
@@ -90,6 +94,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -112,18 +117,22 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 		return nil, err
 	}
 
-	if len(req.Spec.Contents) > 0 {
+	contentLen := len(req.Spec.Contents)
+	if contentLen > 0 {
 		now := time.Now()
-		sqlStr := "INSERT INTO spec_value (spec_id, content, created_by, updated_by, created_at, updated_at) VALUES "
-		vals := []interface{}{}
-		rowSQL := "(?, ?, ?, ?, ?, ?)"
-		var inserts []string
+		specs := make([]*spec_value.SpecValue, 0, contentLen)
 		for k := range req.Spec.Contents {
-			inserts = append(inserts, rowSQL)
-			vals = append(vals, specInfo.SpecId, req.Spec.Contents[k], specInfo.CreatedBy, req.Spec.AdminId, specInfo.CreatedAt, now)
+			buf := &spec_value.SpecValue{
+				SpecId:    specInfo.SpecId,
+				Content:   req.Spec.Contents[k],
+				CreatedBy: req.Spec.AdminId,
+				UpdatedBy: req.Spec.AdminId,
+				CreatedAt: now,
+				UpdatedAt: now,
+			}
+			specs = append(specs, buf)
 		}
-		sqlStr = sqlStr + strings.Join(inserts, ",")
-		if err = tx.Exec(sqlStr, vals...).Error; err != nil {
+		if err = spec_value.BatchInsert(tx, specs); err != nil {
 			return nil, err
 		}
 	}
@@ -154,6 +163,7 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*product
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -184,8 +194,9 @@ func (s *Spec) ReadSpec(ctx context.Context, req *productpb.ReadSpecReq) (*produ
 		return nil, err
 	}
 
-	var contents []string
 	getContents, err := spec_value.GetContentsBySpecIds([]uint64{row.SpecId})
+
+	contents := make([]string, len(getContents))
 	if _, ok := getContents[row.SpecId]; ok {
 		contents = getContents[row.SpecId]
 	}
@@ -201,22 +212,32 @@ func (s *Spec) ReadSpec(ctx context.Context, req *productpb.ReadSpecReq) (*produ
 }
 
 func (s *Spec) ReadSpecs(ctx context.Context, req *productpb.ReadSpecsReq) (*productpb.ReadSpecsRes, error) {
-	list := []*productpb.SpecInfo{}
+	var page uint64 = 1
+	if req.Page > 0 {
+		page = req.Page
+	}
 
-	rows, err := spec.GetSpecs(1, 10)
+	var pageSize uint64 = 10
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
+
+	rows, err := spec.GetSpecs(page, pageSize)
 	if err != nil {
 		return nil, err
 	}
 
-	var specIds []uint64
+	rowLen := len(rows)
+	specIds := make([]uint64, 0, rowLen)
 	for k := range rows {
 		specIds = append(specIds, rows[k].SpecId)
 	}
 
 	getContents, err := spec_value.GetContentsBySpecIds(specIds)
 
+	list := make([]*productpb.SpecInfo, 0, rowLen)
 	for k := range rows {
-		var contents []string
+		contents := make([]string, 0, 8)
 		if _, ok := getContents[rows[k].SpecId]; ok {
 			contents = getContents[rows[k].SpecId]
 		}

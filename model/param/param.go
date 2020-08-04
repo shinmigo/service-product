@@ -7,18 +7,12 @@ import (
 	"goshop/service-product/pkg/db"
 )
 
-const (
-	ParamTypeText     = 1
-	ParamTypeRadio    = 2
-	ParamTypeCheckbox = 3
-)
-
 type Param struct {
 	ParamId   uint64 `gorm:"PRIMARY_KEY"`
 	StoreId   uint64
 	KindId    uint64
 	Name      string
-	Type      int
+	Type      int32
 	Sort      uint64
 	CreatedBy uint64
 	UpdatedBy uint64
@@ -29,7 +23,7 @@ type Param struct {
 type ParamInfo struct {
 	ParamId   uint64    `json:"param_id"`
 	Name      string    `json:"name"`
-	Type      int       `json:"type"`
+	Type      int32     `json:"type"`
 	Sort      uint64    `json:"sort"`
 	CreatedBy uint64    `json:"-"`
 	CreatedAt time.Time `json:"-"`
@@ -61,8 +55,8 @@ func GetOneByParamId(ParamId uint64) (*ParamInfo, error) {
 	return row, nil
 }
 
-func GetParams(page, pageSize int64) ([]*ParamInfo, error) {
-	rows := []*ParamInfo{}
+func GetParams(page, pageSize uint64) ([]*ParamInfo, error) {
+	rows := make([]*ParamInfo, 0, pageSize)
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Offset((page - 1) * pageSize).

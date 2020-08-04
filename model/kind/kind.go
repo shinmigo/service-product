@@ -52,8 +52,9 @@ func GetOneByKindId(KindId uint64) (*KindInfo, error) {
 	return row, nil
 }
 
-func GetKinds(page, pageSize int64) ([]*KindInfo, error) {
-	rows := []*KindInfo{}
+func GetKinds(page, pageSize uint64) ([]*KindInfo, error) {
+	rows := make([]*KindInfo, 0, pageSize)
+
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Offset((page - 1) * pageSize).

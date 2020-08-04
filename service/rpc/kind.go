@@ -35,8 +35,7 @@ func (k *Kind) AddKind(ctx context.Context, req *productpb.AddKindReq) (*product
 }
 
 func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*productpb.EditKindRes, error) {
-	kindInfo, err := kind.GetOneByKindId(req.Kind.KindId)
-	if err != nil {
+	if _, err := kind.GetOneByKindId(req.Kind.KindId); err != nil {
 		return nil, err
 	}
 
@@ -46,7 +45,7 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*produ
 		UpdatedBy: req.Kind.AdminId,
 	}
 
-	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", kindInfo.KindId).Updates(&aul).Error; err != nil {
+	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", req.Kind.KindId).Updates(&aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -56,12 +55,11 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*produ
 }
 
 func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*productpb.DelKindRes, error) {
-	kindInfo, err := kind.GetOneByKindId(req.KindId)
-	if err != nil {
+	if _, err := kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
 	}
 
-	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", kindInfo.KindId).Delete(kind.Kind{}).Error; err != nil {
+	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", req.KindId).Delete(kind.Kind{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -87,13 +85,22 @@ func (k *Kind) ReadKind(ctx context.Context, req *productpb.ReadKindReq) (*produ
 }
 
 func (k *Kind) ReadKinds(ctx context.Context, req *productpb.ReadKindsReq) (*productpb.ReadKindsRes, error) {
-	list := []*productpb.KindInfo{}
+	var page uint64 = 1
+	if req.Page > 0 {
+		page = req.Page
+	}
 
-	rows, err := kind.GetKinds(1, 10)
+	var pageSize uint64 = 10
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
+
+	rows, err := kind.GetKinds(page, pageSize)
 	if err != nil {
 		return nil, err
 	}
-
+	rowLen := len(rows)
+	list := make([]*productpb.KindInfo, 0, rowLen)
 	for k := range rows {
 		list = append(list, &productpb.KindInfo{
 			KindId:   rows[k].KindId,
@@ -109,9 +116,7 @@ func (k *Kind) ReadKinds(ctx context.Context, req *productpb.ReadKindsReq) (*pro
 
 func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*productpb.BindParamRes, error) {
 	var err error
-
-	_, err = kind.GetOneByKindId(req.KindId)
-	if err != nil {
+	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
 	}
 
@@ -123,6 +128,7 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*pro
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -140,7 +146,9 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*pro
 			return nil, err
 		}
 
-		tx.Table(param.GetTableName()).Where("kind_id = ?", req.KindId).Count(&total)
+		if err = tx.Table(param.GetTableName()).Where("kind_id = ?", req.KindId).Count(&total).Error; err != nil {
+			return nil, err
+		}
 	}
 
 	if err = tx.Table(kind.GetTableName()).Where("kind_id = ?", req.KindId).Update("param_qty", total).Error; err != nil {
@@ -158,9 +166,7 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*pro
 
 func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*productpb.BindSpecRes, error) {
 	var err error
-
-	_, err = kind.GetOneByKindId(req.KindId)
-	if err != nil {
+	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
 	}
 
@@ -172,6 +178,7 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*produ
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			panic(r)
 		}
 
 		if err != nil {
@@ -189,7 +196,10 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*produ
 			return nil, err
 		}
 
-		tx.Table(spec.GetTableName()).Where("kind_id = ?", req.KindId).Count(&total)
+		if err = tx.Table(spec.GetTableName()).Where("kind_id = ?", req.KindId).Count(&total).Error; err != nil {
+			return nil, err
+		}
+
 	}
 	if err = tx.Table(kind.GetTableName()).Where("kind_id = ?", req.KindId).Update("spec_qty", total).Error; err != nil {
 		return nil, err

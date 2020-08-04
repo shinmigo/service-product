@@ -2,8 +2,9 @@ package tag
 
 import (
 	"fmt"
-	"goshop/service-product/pkg/db"
 	"time"
+
+	"goshop/service-product/pkg/db"
 )
 
 type Tag struct {
@@ -47,8 +48,8 @@ func GetOneByTagId(tagId uint64) (*TagInfo, error) {
 	return row, nil
 }
 
-func GetTags(page, pageSize int64) ([]*TagInfo, error) {
-	rows := []*TagInfo{}
+func GetTags(page, pageSize uint64) ([]*TagInfo, error) {
+	rows := make([]*TagInfo, 0, pageSize)
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Order("tag_id desc").

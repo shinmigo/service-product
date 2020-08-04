@@ -53,8 +53,8 @@ func GetOneBySpecId(SpecId uint64) (*SpecInfo, error) {
 	return row, nil
 }
 
-func GetSpecs(page, pageSize int64) ([]*SpecInfo, error) {
-	rows := []*SpecInfo{}
+func GetSpecs(page, pageSize uint64) ([]*SpecInfo, error) {
+	rows := make([]*SpecInfo, 0, pageSize)
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Offset((page - 1) * pageSize).
