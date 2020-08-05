@@ -113,7 +113,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 		Sort:      req.Param.Sort,
 		UpdatedBy: req.Param.AdminId,
 	}
-	if err = tx.Table(param.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Updates(&aul).Error; err != nil {
+	if err = tx.Table(param.GetTableName()).Model(&param.Param{ParamId: paramInfo.ParamId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -129,9 +129,9 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*pr
 			buf := &param_value.ParamValue{
 				ParamId:   paramInfo.ParamId,
 				Content:   req.Param.Contents[k],
-				CreatedBy: req.Param.AdminId,
+				CreatedBy: paramInfo.CreatedBy,
 				UpdatedBy: req.Param.AdminId,
-				CreatedAt: now,
+				CreatedAt: paramInfo.CreatedAt,
 				UpdatedAt: now,
 			}
 			params = append(params, buf)
@@ -171,7 +171,7 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*prod
 		}
 	}()
 
-	if err = tx.Table(param.GetTableName()).Where("param_id = ?", req.ParamId).Delete(param.Param{}).Error; err != nil {
+	if err = tx.Table(param.GetTableName()).Delete(param.Param{ParamId: req.ParamId}).Error; err != nil {
 		return nil, err
 	}
 
@@ -194,7 +194,7 @@ func (p *Param) ReadParam(ctx context.Context, req *productpb.ReadParamReq) (*pr
 		return nil, err
 	}
 
-	getContents, err := param_value.GetContentsByParamIds([]uint64{row.ParamId})
+	getContents, _ := param_value.GetContentsByParamIds([]uint64{row.ParamId})
 	contents := make([]string, 0, len(getContents))
 	if _, ok := getContents[row.ParamId]; ok {
 		contents = getContents[row.ParamId]

@@ -44,7 +44,7 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.EditTagReq) (*productp
 		UpdatedBy: req.Tag.AdminId,
 	}
 
-	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", req.Tag.TagId).Updates(&aul).Error; err != nil {
+	if err := db.Conn.Table(tag.GetTableName()).Model(&tag.Tag{TagId: req.Tag.TagId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -58,7 +58,7 @@ func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*productpb.
 		return nil, err
 	}
 
-	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id = ?", req.TagId).Delete(tag.Tag{}).Error; err != nil {
+	if err := db.Conn.Table(tag.GetTableName()).Delete(&tag.Tag{TagId: req.TagId}).Error; err != nil {
 		return nil, err
 	}
 

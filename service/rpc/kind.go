@@ -45,7 +45,7 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*produ
 		UpdatedBy: req.Kind.AdminId,
 	}
 
-	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", req.Kind.KindId).Updates(&aul).Error; err != nil {
+	if err := db.Conn.Table(kind.GetTableName()).Model(&kind.Kind{KindId: req.Kind.KindId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -55,11 +55,40 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*produ
 }
 
 func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*productpb.DelKindRes, error) {
-	if _, err := kind.GetOneByKindId(req.KindId); err != nil {
+	var err error
+	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
 	}
 
-	if err := db.Conn.Table(kind.GetTableName()).Where("kind_id = ?", req.KindId).Delete(kind.Kind{}).Error; err != nil {
+	tx := db.Conn.Begin()
+	if err = tx.Error; err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err = tx.Table(param.GetTableName()).Where("kind_id = ?", req.KindId).Update("kind_id", 0).Error; err != nil {
+		return nil, err
+	}
+
+	if err = tx.Table(spec.GetTableName()).Where("kind_id = ?", req.KindId).Update("kind_id", 0).Error; err != nil {
+		return nil, err
+	}
+
+	if err := tx.Table(kind.GetTableName()).Delete(&kind.Kind{KindId: req.KindId}).Error; err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit().Error; err != nil {
 		return nil, err
 	}
 
@@ -142,7 +171,7 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*pro
 
 	var total uint64
 	if len(req.ParamIds) > 0 {
-		if err = tx.Table(param.GetTableName()).Where("param_id in (?)", req.ParamIds).Update("kind_id", req.KindId).Error; err != nil {
+		if err = tx.Table(param.GetTableName()).Where("param_id in (?) and kind_id = 0", req.ParamIds).Update("kind_id", req.KindId).Error; err != nil {
 			return nil, err
 		}
 
@@ -192,7 +221,7 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*produ
 
 	var total uint64
 	if len(req.SpecIds) > 0 {
-		if err = tx.Table(spec.GetTableName()).Where("spec_id in (?)", req.SpecIds).Update("kind_id", req.KindId).Error; err != nil {
+		if err = tx.Table(spec.GetTableName()).Where("spec_id in (?) and kind_id = 0", req.SpecIds).Update("kind_id", req.KindId).Error; err != nil {
 			return nil, err
 		}
 

@@ -109,7 +109,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 		Sort:      req.Spec.Sort,
 		UpdatedBy: req.Spec.AdminId,
 	}
-	if err = tx.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Updates(&aul).Error; err != nil {
+	if err = tx.Table(spec.GetTableName()).Model(&spec.Spec{SpecId: specInfo.SpecId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
 
@@ -125,9 +125,9 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 			buf := &spec_value.SpecValue{
 				SpecId:    specInfo.SpecId,
 				Content:   req.Spec.Contents[k],
-				CreatedBy: req.Spec.AdminId,
+				CreatedBy: specInfo.CreatedBy,
 				UpdatedBy: req.Spec.AdminId,
-				CreatedAt: now,
+				CreatedAt: specInfo.CreatedAt,
 				UpdatedAt: now,
 			}
 			specs = append(specs, buf)
@@ -171,7 +171,7 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*product
 		}
 	}()
 
-	if err = tx.Table(spec.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec.Spec{}).Error; err != nil {
+	if err = tx.Table(spec.GetTableName()).Delete(&spec.Spec{SpecId: specInfo.SpecId}).Error; err != nil {
 		return nil, err
 	}
 
@@ -194,7 +194,7 @@ func (s *Spec) ReadSpec(ctx context.Context, req *productpb.ReadSpecReq) (*produ
 		return nil, err
 	}
 
-	getContents, err := spec_value.GetContentsBySpecIds([]uint64{row.SpecId})
+	getContents, _ := spec_value.GetContentsBySpecIds([]uint64{row.SpecId})
 
 	contents := make([]string, len(getContents))
 	if _, ok := getContents[row.SpecId]; ok {
