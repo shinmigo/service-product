@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"goshop/service-product/pkg/utils"
 
+	"github.com/shinmigo/pb/basepb"
+
 	"github.com/shinmigo/pb/productpb"
 
 	"goshop/service-product/model/tag"
@@ -19,7 +21,7 @@ func NewTag() *Tag {
 	return &Tag{}
 }
 
-func (t *Tag) AddTag(ctx context.Context, req *productpb.Tag) (*productpb.AnyRes, error) {
+func (t *Tag) AddTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, error) {
 	aul := tag.Tag{
 		StoreId:   req.StoreId,
 		Name:      req.Name,
@@ -35,13 +37,13 @@ func (t *Tag) AddTag(ctx context.Context, req *productpb.Tag) (*productpb.AnyRes
 		return nil, fmt.Errorf("timeout!")
 	}
 
-	return &productpb.AnyRes{
+	return &basepb.AnyRes{
 		Id:    aul.TagId,
 		State: 1,
 	}, nil
 }
 
-func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*productpb.AnyRes, error) {
+func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, error) {
 	if _, err := tag.GetOneByTagId(req.TagId); err != nil {
 		return nil, err
 	}
@@ -60,13 +62,13 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*productpb.AnyRe
 		return nil, fmt.Errorf("timeout!")
 	}
 
-	return &productpb.AnyRes{
+	return &basepb.AnyRes{
 		Id:    req.TagId,
 		State: 1,
 	}, nil
 }
 
-func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*productpb.AnyRes, error) {
+func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*basepb.AnyRes, error) {
 	if _, err := tag.GetOneByTagId(req.TagId); err != nil {
 		return nil, err
 	}
@@ -79,7 +81,7 @@ func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*productpb.
 		return nil, fmt.Errorf("timeout!")
 	}
 
-	return &productpb.AnyRes{
+	return &basepb.AnyRes{
 		Id:    req.TagId,
 		State: 1,
 	}, nil

@@ -25,7 +25,7 @@ require (
 	github.com/pelletier/go-toml v1.8.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.3.0 // indirect
-	github.com/shinmigo/pb v0.0.0-20200806054325-61bd6a71ffcd
+	github.com/shinmigo/pb v0.0.0-20200806100444-46a8e0e9d0f3
 	github.com/spf13/afero v1.3.1 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
