@@ -2,19 +2,18 @@ package tag
 
 import (
 	"fmt"
-	"time"
-
 	"goshop/service-product/pkg/db"
+	"goshop/service-product/pkg/utils"
 )
 
 type Tag struct {
-	TagId     uint64    `json:"tag_id" gorm:"PRIMARY_KEY"`
-	StoreId   uint64    `json:"store_id"`
-	Name      string    `json:"name"`
-	CreatedBy uint64    `json:"created_by"`
-	UpdatedBy uint64    `json:"updated_by"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	TagId     uint64         `json:"tag_id" gorm:"PRIMARY_KEY"`
+	StoreId   uint64         `json:"store_id"`
+	Name      string         `json:"name"`
+	CreatedBy uint64         `json:"created_by"`
+	UpdatedBy uint64         `json:"updated_by"`
+	CreatedAt utils.JSONTime `json:"created_at"`
+	UpdatedAt utils.JSONTime `json:"updated_at"`
 }
 
 func GetTableName() string {

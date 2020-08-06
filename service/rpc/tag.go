@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"goshop/service-product/pkg/utils"
 
 	"github.com/shinmigo/pb/productpb"
 
@@ -104,7 +105,6 @@ func (t *Tag) GetTagList(ctx context.Context, req *productpb.ListTagReq) (*produ
 		return nil, fmt.Errorf("timeout!")
 	}
 
-	timeTemplate := "2006-01-02 15:04:05"
 	list := make([]*productpb.TagDetail, 0, len(rows))
 	for k := range rows {
 		list = append(list, &productpb.TagDetail{
@@ -113,8 +113,8 @@ func (t *Tag) GetTagList(ctx context.Context, req *productpb.ListTagReq) (*produ
 			Name:      rows[k].Name,
 			CreatedBy: rows[k].CreatedBy,
 			UpdatedBy: rows[k].UpdatedBy,
-			CreatedAt: rows[k].CreatedAt.Format(timeTemplate),
-			UpdatedAt: rows[k].UpdatedAt.Format(timeTemplate),
+			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
+			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
 		})
 	}
 
