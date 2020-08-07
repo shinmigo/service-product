@@ -1,10 +1,14 @@
 package rpc
 
 import (
+	"fmt"
 	"goshop/service-product/model/kind"
 	"goshop/service-product/model/param"
 	"goshop/service-product/model/spec"
 	"goshop/service-product/pkg/db"
+	"goshop/service-product/pkg/utils"
+
+	"github.com/shinmigo/pb/basepb"
 
 	"github.com/shinmigo/pb/productpb"
 	"golang.org/x/net/context"
@@ -17,44 +21,54 @@ func NewKind() *Kind {
 	return &Kind{}
 }
 
-func (k *Kind) AddKind(ctx context.Context, req *productpb.AddKindReq) (*productpb.AddKindRes, error) {
+func (k *Kind) AddKind(ctx context.Context, req *productpb.Kind) (*basepb.AnyRes, error) {
 	aul := kind.Kind{
-		StoreId:   req.Kind.StoreId,
-		Name:      req.Kind.Name,
-		CreatedBy: req.Kind.AdminId,
-		UpdatedBy: req.Kind.AdminId,
+		StoreId:   req.StoreId,
+		Name:      req.Name,
+		CreatedBy: req.AdminId,
+		UpdatedBy: req.AdminId,
 	}
 
 	if err := db.Conn.Table(kind.GetTableName()).Create(&aul).Error; err != nil {
 		return nil, err
 	}
 
-	return &productpb.AddKindRes{
-		KindId: aul.KindId,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    aul.KindId,
+		State: 1,
 	}, nil
 }
 
-func (k *Kind) EditKind(ctx context.Context, req *productpb.EditKindReq) (*productpb.EditKindRes, error) {
-	if _, err := kind.GetOneByKindId(req.Kind.KindId); err != nil {
+func (k *Kind) EditKind(ctx context.Context, req *productpb.Kind) (*basepb.AnyRes, error) {
+	if _, err := kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
 	}
 
 	aul := kind.Kind{
-		StoreId:   req.Kind.StoreId,
-		Name:      req.Kind.Name,
-		UpdatedBy: req.Kind.AdminId,
+		StoreId:   req.StoreId,
+		Name:      req.Name,
+		UpdatedBy: req.AdminId,
 	}
 
-	if err := db.Conn.Table(kind.GetTableName()).Model(&kind.Kind{KindId: req.Kind.KindId}).Updates(aul).Error; err != nil {
+	if err := db.Conn.Table(kind.GetTableName()).Model(&kind.Kind{KindId: req.KindId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
 
-	return &productpb.EditKindRes{
-		Updated: 1,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.KindId,
+		State: 1,
 	}, nil
 }
 
-func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*productpb.DelKindRes, error) {
+func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*basepb.AnyRes, error) {
 	var err error
 	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
@@ -92,28 +106,17 @@ func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*product
 		return nil, err
 	}
 
-	return &productpb.DelKindRes{
-		Deleted: 1,
-	}, nil
-}
-
-func (k *Kind) ReadKind(ctx context.Context, req *productpb.ReadKindReq) (*productpb.ReadKindRes, error) {
-	row, err := kind.GetOneByKindId(req.KindId)
-	if err != nil {
-		return nil, err
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
 	}
 
-	return &productpb.ReadKindRes{
-		Kind: &productpb.KindInfo{
-			KindId:   row.KindId,
-			Name:     row.Name,
-			ParamQty: row.ParamQty,
-			SpecQty:  row.SpecQty,
-		},
+	return &basepb.AnyRes{
+		Id:    req.KindId,
+		State: 1,
 	}, nil
 }
 
-func (k *Kind) ReadKinds(ctx context.Context, req *productpb.ReadKindsReq) (*productpb.ReadKindsRes, error) {
+func (k *Kind) GetKindList(ctx context.Context, req *productpb.ListKindReq) (*productpb.ListKindRes, error) {
 	var page uint64 = 1
 	if req.Page > 0 {
 		page = req.Page
@@ -124,26 +127,36 @@ func (k *Kind) ReadKinds(ctx context.Context, req *productpb.ReadKindsReq) (*pro
 		pageSize = req.PageSize
 	}
 
-	rows, err := kind.GetKinds(page, pageSize)
+	rows, total, err := kind.GetKindList(req.Id, req.Name, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
-	rowLen := len(rows)
-	list := make([]*productpb.KindInfo, 0, rowLen)
+
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	list := make([]*productpb.KindDetail, 0, len(rows))
 	for k := range rows {
-		list = append(list, &productpb.KindInfo{
-			KindId:   rows[k].KindId,
-			Name:     rows[k].Name,
-			ParamQty: rows[k].ParamQty,
-			SpecQty:  rows[k].SpecQty,
+		list = append(list, &productpb.KindDetail{
+			KindId:    rows[k].KindId,
+			StoreId:   rows[k].StoreId,
+			Name:      rows[k].Name,
+			ParamQty:  rows[k].ParamQty,
+			SpecQty:   rows[k].SpecQty,
+			CreatedBy: rows[k].CreatedBy,
+			UpdatedBy: rows[k].UpdatedBy,
+			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
+			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
 		})
 	}
-	return &productpb.ReadKindsRes{
+	return &productpb.ListKindRes{
+		Total: total,
 		Kinds: list,
 	}, nil
 }
 
-func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*productpb.BindParamRes, error) {
+func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*basepb.AnyRes, error) {
 	var err error
 	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
@@ -188,12 +201,17 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*pro
 		return nil, err
 	}
 
-	return &productpb.BindParamRes{
-		Updated: 1,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.KindId,
+		State: 1,
 	}, nil
 }
 
-func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*productpb.BindSpecRes, error) {
+func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*basepb.AnyRes, error) {
 	var err error
 	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
@@ -238,7 +256,12 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*produ
 		return nil, err
 	}
 
-	return &productpb.BindSpecRes{
-		Updated: 1,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.KindId,
+		State: 1,
 	}, nil
 }
