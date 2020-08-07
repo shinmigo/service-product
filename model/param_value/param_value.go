@@ -3,7 +3,7 @@ package param_value
 import (
 	"bytes"
 	"fmt"
-	"time"
+	"goshop/service-product/pkg/utils"
 
 	"github.com/jinzhu/gorm"
 
@@ -15,8 +15,8 @@ type ParamValue struct {
 	Content   string
 	CreatedBy uint64
 	UpdatedBy uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt utils.JSONTime
+	UpdatedAt utils.JSONTime
 }
 
 type ParamContent struct {
