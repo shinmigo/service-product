@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	"google.golang.org/grpc/reflection"
+
 	"github.com/shinmigo/pb/productpb"
 
 	"google.golang.org/grpc"
@@ -76,6 +78,7 @@ func Run(grpcIsTrue chan bool) {
 		_ = l.Close()
 		g.GracefulStop()
 	}()
+	reflection.Register(g)
 
 	if err := etcd3.Register(utils.C.Etcd.Host, grpcServiceName, grpcAddr, 5); err != nil {
 		fmt.Println(err)
