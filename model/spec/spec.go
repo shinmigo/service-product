@@ -2,29 +2,21 @@ package spec
 
 import (
 	"fmt"
-	"time"
+	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
 )
 
 type Spec struct {
-	SpecId    uint64 `gorm:"PRIMARY_KEY"`
-	StoreId   uint64
-	KindId    uint64
-	Name      string
-	Sort      uint64
-	CreatedBy uint64
-	UpdatedBy uint64
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-type SpecInfo struct {
-	SpecId    uint64    `json:"spec_id"`
-	Name      string    `json:"name"`
-	Sort      uint64    `json:"sort"`
-	CreatedBy uint64    `json:"-"`
-	CreatedAt time.Time `json:"-"`
+	SpecId    uint64         `json:"spec_id" gorm:"PRIMARY_KEY"`
+	StoreId   uint64         `json:"store_id"`
+	KindId    uint64         `json:"kind_id"`
+	Name      string         `json:"name"`
+	Sort      uint64         `json:"sort"`
+	CreatedBy uint64         `json:"created_by"`
+	UpdatedBy uint64         `json:"updated_by"`
+	CreatedAt utils.JSONTime `json:"created_at"`
+	UpdatedAt utils.JSONTime `json:"updated_at"`
 }
 
 func GetTableName() string {
@@ -33,15 +25,16 @@ func GetTableName() string {
 
 func GetField() []string {
 	return []string{
-		"spec_id", "name", "sort", "created_by", "created_at",
+		"spec_id", "store_id", "kind_id", "name", "sort",
+		"created_by", "updated_by", "created_at", "updated_at",
 	}
 }
 
-func GetOneBySpecId(SpecId uint64) (*SpecInfo, error) {
+func GetOneBySpecId(SpecId uint64) (*Spec, error) {
 	if SpecId == 0 {
 		return nil, fmt.Errorf("spec_id is null")
 	}
-	row := &SpecInfo{}
+	row := &Spec{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
 		Where("spec_id = ?", SpecId).
@@ -53,16 +46,26 @@ func GetOneBySpecId(SpecId uint64) (*SpecInfo, error) {
 	return row, nil
 }
 
-func GetSpecs(page, pageSize uint64) ([]*SpecInfo, error) {
-	rows := make([]*SpecInfo, 0, pageSize)
-	err := db.Conn.Table(GetTableName()).
-		Select(GetField()).
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Find(&rows).Error
+func GetSpecList(specId uint64, specName string, page, pageSize uint64) ([]*Spec, uint64, error) {
+	var total uint64
 
-	if err != nil {
-		return nil, fmt.Errorf("err: %v", err)
+	rows := make([]*Spec, 0, pageSize)
+
+	query := db.Conn.Table(GetTableName()).Select(GetField())
+	if specId > 0 {
+		query = query.Where("spec_id = ?", specId)
 	}
-	return rows, nil
+
+	if specName != "" {
+		query = query.Where("name like ?", "%"+specName+"%")
+	}
+
+	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	if err != nil {
+		return nil, total, err
+	}
+
+	query.Count(&total)
+
+	return rows, total, nil
 }

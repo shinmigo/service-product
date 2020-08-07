@@ -1,12 +1,13 @@
 package rpc
 
 import (
+	"fmt"
 	"goshop/service-product/model/spec"
-	"goshop/service-product/pkg/db"
-	"time"
-
 	"goshop/service-product/model/spec_value"
+	"goshop/service-product/pkg/db"
+	"goshop/service-product/pkg/utils"
 
+	"github.com/shinmigo/pb/basepb"
 	"github.com/shinmigo/pb/productpb"
 	"golang.org/x/net/context"
 )
@@ -18,7 +19,7 @@ func NewSpec() *Spec {
 	return &Spec{}
 }
 
-func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*productpb.AddSpecRes, error) {
+func (s *Spec) AddSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes, error) {
 	var err error
 
 	tx := db.Conn.Begin()
@@ -38,27 +39,27 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 	}()
 
 	aul := spec.Spec{
-		StoreId:   req.Spec.StoreId,
-		KindId:    req.Spec.KindId,
-		Name:      req.Spec.Name,
-		Sort:      req.Spec.Sort,
-		CreatedBy: req.Spec.AdminId,
-		UpdatedBy: req.Spec.AdminId,
+		StoreId:   req.StoreId,
+		KindId:    req.KindId,
+		Name:      req.Name,
+		Sort:      req.Sort,
+		CreatedBy: req.AdminId,
+		UpdatedBy: req.AdminId,
 	}
 	if err = tx.Table(spec.GetTableName()).Create(&aul).Error; err != nil {
 		return nil, err
 	}
 
-	contentLen := len(req.Spec.Contents)
+	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := time.Now()
+		now := utils.JSONTime{utils.GetNow()}
 		specs := make([]*spec_value.SpecValue, 0, contentLen)
-		for k := range req.Spec.Contents {
+		for k := range req.Contents {
 			buf := &spec_value.SpecValue{
 				SpecId:    aul.SpecId,
-				Content:   req.Spec.Contents[k],
-				CreatedBy: req.Spec.AdminId,
-				UpdatedBy: req.Spec.AdminId,
+				Content:   req.Contents[k],
+				CreatedBy: req.AdminId,
+				UpdatedBy: req.AdminId,
 				CreatedAt: now,
 				UpdatedAt: now,
 			}
@@ -73,19 +74,22 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.AddSpecReq) (*product
 		return nil, err
 	}
 
-	return &productpb.AddSpecRes{
-		SpecId: aul.SpecId,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    aul.SpecId,
+		State: 1,
 	}, nil
 }
 
-func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*productpb.EditSpecRes, error) {
+func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes, error) {
 	var err error
-	var specInfo *spec.SpecInfo
-	specInfo, err = spec.GetOneBySpecId(req.Spec.SpecId)
-	if err != nil {
+	var specInfo *spec.Spec
+	if specInfo, err = spec.GetOneBySpecId(req.SpecId); err != nil {
 		return nil, err
 	}
-
 	tx := db.Conn.Begin()
 	if err = tx.Error; err != nil {
 		return nil, err
@@ -103,12 +107,13 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 	}()
 
 	aul := spec.Spec{
-		StoreId:   req.Spec.StoreId,
-		KindId:    req.Spec.KindId,
-		Name:      req.Spec.Name,
-		Sort:      req.Spec.Sort,
-		UpdatedBy: req.Spec.AdminId,
+		StoreId:   req.StoreId,
+		KindId:    req.KindId,
+		Name:      req.Name,
+		Sort:      req.Sort,
+		UpdatedBy: req.AdminId,
 	}
+
 	if err = tx.Table(spec.GetTableName()).Model(&spec.Spec{SpecId: specInfo.SpecId}).Updates(aul).Error; err != nil {
 		return nil, err
 	}
@@ -117,16 +122,16 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 		return nil, err
 	}
 
-	contentLen := len(req.Spec.Contents)
+	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := time.Now()
+		now := utils.JSONTime{utils.GetNow()}
 		specs := make([]*spec_value.SpecValue, 0, contentLen)
-		for k := range req.Spec.Contents {
+		for k := range req.Contents {
 			buf := &spec_value.SpecValue{
 				SpecId:    specInfo.SpecId,
-				Content:   req.Spec.Contents[k],
+				Content:   req.Contents[k],
 				CreatedBy: specInfo.CreatedBy,
-				UpdatedBy: req.Spec.AdminId,
+				UpdatedBy: req.AdminId,
 				CreatedAt: specInfo.CreatedAt,
 				UpdatedAt: now,
 			}
@@ -141,17 +146,20 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*produ
 		return nil, err
 	}
 
-	return &productpb.EditSpecRes{
-		Updated: 1,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.SpecId,
+		State: 1,
 	}, nil
 }
 
-func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*productpb.DelSpecRes, error) {
+func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.AnyRes, error) {
 	var err error
-	var specInfo *spec.SpecInfo
-
-	specInfo, err = spec.GetOneBySpecId(req.SpecId)
-	if err != nil {
+	var specInfo *spec.Spec
+	if specInfo, err = spec.GetOneBySpecId(req.SpecId); err != nil {
 		return nil, err
 	}
 
@@ -183,35 +191,17 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*product
 		return nil, err
 	}
 
-	return &productpb.DelSpecRes{
-		Deleted: 1,
+	if ctx.Err() == context.Canceled {
+		return nil, fmt.Errorf("timeout!")
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.SpecId,
+		State: 1,
 	}, nil
 }
 
-func (s *Spec) ReadSpec(ctx context.Context, req *productpb.ReadSpecReq) (*productpb.ReadSpecRes, error) {
-	row, err := spec.GetOneBySpecId(req.SpecId)
-	if err != nil {
-		return nil, err
-	}
-
-	getContents, _ := spec_value.GetContentsBySpecIds([]uint64{row.SpecId})
-
-	contents := make([]string, len(getContents))
-	if _, ok := getContents[row.SpecId]; ok {
-		contents = getContents[row.SpecId]
-	}
-
-	return &productpb.ReadSpecRes{
-		Spec: &productpb.SpecInfo{
-			SpecId:   row.SpecId,
-			Name:     row.Name,
-			Sort:     row.Sort,
-			Contents: contents,
-		},
-	}, nil
-}
-
-func (s *Spec) ReadSpecs(ctx context.Context, req *productpb.ReadSpecsReq) (*productpb.ReadSpecsRes, error) {
+func (s *Spec) GetSpecList(ctx context.Context, req *productpb.ListSpecReq) (*productpb.ListSpecRes, error) {
 	var page uint64 = 1
 	if req.Page > 0 {
 		page = req.Page
@@ -222,7 +212,7 @@ func (s *Spec) ReadSpecs(ctx context.Context, req *productpb.ReadSpecsReq) (*pro
 		pageSize = req.PageSize
 	}
 
-	rows, err := spec.GetSpecs(page, pageSize)
+	rows, total, err := spec.GetSpecList(req.Id, req.Name, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -233,23 +223,30 @@ func (s *Spec) ReadSpecs(ctx context.Context, req *productpb.ReadSpecsReq) (*pro
 		specIds = append(specIds, rows[k].SpecId)
 	}
 
-	getContents, err := spec_value.GetContentsBySpecIds(specIds)
+	getContents, _ := spec_value.GetContentsBySpecIds(specIds)
 
-	list := make([]*productpb.SpecInfo, 0, rowLen)
+	list := make([]*productpb.SpecDetail, 0, rowLen)
 	for k := range rows {
 		contents := make([]string, 0, 8)
 		if _, ok := getContents[rows[k].SpecId]; ok {
 			contents = getContents[rows[k].SpecId]
 		}
-		list = append(list, &productpb.SpecInfo{
-			SpecId:   rows[k].SpecId,
-			Name:     rows[k].Name,
-			Sort:     rows[k].Sort,
-			Contents: contents,
+		list = append(list, &productpb.SpecDetail{
+			SpecId:    rows[k].SpecId,
+			StoreId:   rows[k].StoreId,
+			KindId:    rows[k].KindId,
+			Name:      rows[k].Name,
+			Sort:      rows[k].Sort,
+			CreatedBy: rows[k].CreatedBy,
+			UpdatedBy: rows[k].UpdatedBy,
+			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
+			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
+			Contents:  contents,
 		})
 	}
 
-	return &productpb.ReadSpecsRes{
+	return &productpb.ListSpecRes{
+		Total: total,
 		Specs: list,
 	}, nil
 }
