@@ -20,13 +20,14 @@ type Category struct {
 	UpdatedBy  uint64
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	DeletedAt  *time.Time
 }
 
 func GetTableName() string {
 	return "category"
 }
 
-type CategoryInfo struct {
+type Info struct {
 	CategoryId uint64                   `json:"category_id"`
 	ParentId   uint64                   `json:"parent_id"`
 	Name       string                   `json:"name"`
@@ -41,33 +42,39 @@ func GetField() []string {
 	}
 }
 
-func GetOneByCategoryId(categoryId uint64) (*CategoryInfo, error) {
+func GetOneByCategoryId(categoryId uint64) (*Category, error) {
 	if categoryId == 0 {
 		return nil, fmt.Errorf("category_id is null")
 	}
-	row := CategoryInfo{}
-	err := db.Conn.Table(GetTableName()).
+	row := &Category{}
+	err := db.Conn.
 		Select(GetField()).
 		Where("category_id = ?", categoryId).
-		First(&row).Error
+		First(row).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("err: %v", err)
 	}
-	return &row, nil
+	return row, nil
 }
 
-func GetCategories(page, pageSize int64) ([]*CategoryInfo, error) {
-	rows := []*CategoryInfo{}
-	err := db.Conn.Table(GetTableName()).
+func GetCategories(page, pageSize int64) ([]*Category, error) {
+	rows := make([]*Category, 0, pageSize)
+	err := db.Conn.
 		Select(GetField()).
 		Order("category_id desc").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
-		Find(rows).Error
+		Find(&rows).Error
 
 	if err != nil {
 		return nil, fmt.Errorf("err: %v", err)
 	}
 	return rows, nil
+}
+
+func EditCategory(id uint64, data interface{}) bool {
+	db.Conn.Model(&Category{}).Where("category_id = ?", id).Update(data)
+
+	return true
 }
