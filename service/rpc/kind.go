@@ -1,12 +1,14 @@
 package rpc
 
 import (
-	"fmt"
 	"goshop/service-product/model/kind"
 	"goshop/service-product/model/param"
 	"goshop/service-product/model/spec"
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/shinmigo/pb/basepb"
 
@@ -34,7 +36,7 @@ func (k *Kind) AddKind(ctx context.Context, req *productpb.Kind) (*basepb.AnyRes
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -59,7 +61,7 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.Kind) (*basepb.AnyRe
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -107,7 +109,7 @@ func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*basepb.
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -133,7 +135,7 @@ func (k *Kind) GetKindList(ctx context.Context, req *productpb.ListKindReq) (*pr
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	list := make([]*productpb.KindDetail, 0, len(rows))
@@ -202,7 +204,7 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*bas
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -257,7 +259,7 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*basep
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{

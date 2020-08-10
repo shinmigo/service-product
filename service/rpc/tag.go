@@ -1,8 +1,10 @@
 package rpc
 
 import (
-	"fmt"
 	"goshop/service-product/pkg/utils"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/shinmigo/pb/basepb"
 
@@ -34,7 +36,7 @@ func (t *Tag) AddTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, e
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -59,7 +61,7 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, 
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -78,7 +80,7 @@ func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*basepb.Any
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -104,7 +106,7 @@ func (t *Tag) GetTagList(ctx context.Context, req *productpb.ListTagReq) (*produ
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	list := make([]*productpb.TagDetail, 0, len(rows))

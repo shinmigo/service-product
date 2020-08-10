@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"goshop/service-product/model/param"
 	"goshop/service-product/model/param_value"
 	"goshop/service-product/pkg/db"
@@ -10,6 +9,8 @@ import (
 	"github.com/shinmigo/pb/basepb"
 	"github.com/shinmigo/pb/productpb"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Param struct {
@@ -52,7 +53,8 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.Param) (*basepb.Any
 
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{utils.GetNow()}
+		now := utils.JSONTime{}
+		now.Time = utils.GetNow()
 		params := make([]*param_value.ParamValue, 0, contentLen)
 		for k := range req.Contents {
 			buf := &param_value.ParamValue{
@@ -75,7 +77,7 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.Param) (*basepb.Any
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -125,7 +127,8 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.Param) (*basepb.An
 
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{utils.GetNow()}
+		now := utils.JSONTime{}
+		now.Time = utils.GetNow()
 		params := make([]*param_value.ParamValue, 0, contentLen)
 		for k := range req.Contents {
 			buf := &param_value.ParamValue{
@@ -148,7 +151,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.Param) (*basepb.An
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -191,7 +194,7 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*base
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -225,7 +228,7 @@ func (p *Param) GetParamList(ctx context.Context, req *productpb.ListParamReq) (
 	getContents, _ := param_value.GetContentsByParamIds(paramIds)
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	list := make([]*productpb.ParamDetail, 0, rowLen)

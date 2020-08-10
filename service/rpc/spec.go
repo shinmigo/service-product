@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"goshop/service-product/model/spec"
 	"goshop/service-product/model/spec_value"
 	"goshop/service-product/pkg/db"
@@ -10,6 +9,8 @@ import (
 	"github.com/shinmigo/pb/basepb"
 	"github.com/shinmigo/pb/productpb"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Spec struct {
@@ -52,7 +53,8 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes
 
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{utils.GetNow()}
+		now := utils.JSONTime{}
+		now.Time = utils.GetNow()
 		specs := make([]*spec_value.SpecValue, 0, contentLen)
 		for k := range req.Contents {
 			buf := &spec_value.SpecValue{
@@ -75,7 +77,7 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -124,7 +126,8 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRe
 
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{utils.GetNow()}
+		now := utils.JSONTime{}
+		now.Time = utils.GetNow()
 		specs := make([]*spec_value.SpecValue, 0, contentLen)
 		for k := range req.Contents {
 			buf := &spec_value.SpecValue{
@@ -147,7 +150,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRe
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -192,7 +195,7 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.
 	}
 
 	if ctx.Err() == context.Canceled {
-		return nil, fmt.Errorf("timeout!")
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
 	return &basepb.AnyRes{
@@ -224,6 +227,10 @@ func (s *Spec) GetSpecList(ctx context.Context, req *productpb.ListSpecReq) (*pr
 	}
 
 	getContents, _ := spec_value.GetContentsBySpecIds(specIds)
+
+	if ctx.Err() == context.Canceled {
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
+	}
 
 	list := make([]*productpb.SpecDetail, 0, rowLen)
 	for k := range rows {
