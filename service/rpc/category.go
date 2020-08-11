@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"goshop/service-product/model/category"
 	"goshop/service-product/pkg/db"
@@ -85,6 +86,16 @@ func (c *Category) EditCategoryStatus(ctx context.Context, req *productpb.EditCa
 }
 
 func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryReq) (*basepb.AnyRes, error) {
+	//存在子目录是类目不能删除
+	var count int
+	db.Conn.Model(&category.Category{}).Where("parent_id in (?)", req.CategoryId).Count(&count)
+	fmt.Println(len(req.CategoryId), count)
+	if count > 0 {
+		return nil, errors.New("some category exist children")
+	}
+
+	//todo:存在商品的类目不能删除
+
 	db.Conn.Where("category_id IN (?)", req.CategoryId).Delete(&category.Category{})
 
 	return &basepb.AnyRes{
@@ -94,7 +105,7 @@ func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryRe
 }
 
 func (c *Category) GetCategoryList(ctx context.Context, req *productpb.ListCategoryReq) (*productpb.ListCategoryRes, error) {
-	rows, err := category.GetCategories(req.Page, req.PageSize)
+	rows, total, err := category.GetCategories(req)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +123,7 @@ func (c *Category) GetCategoryList(ctx context.Context, req *productpb.ListCateg
 	}
 
 	return &productpb.ListCategoryRes{
-		Total:      uint64(len(categories)),
+		Total:      total,
 		Categories: categories,
 	}, nil
 }

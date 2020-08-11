@@ -3,7 +3,9 @@ package category
 import (
 	"fmt"
 	"goshop/service-product/pkg/db"
-	"time"
+	"goshop/service-product/pkg/utils"
+
+	"github.com/jinzhu/gorm"
 
 	"github.com/shinmigo/pb/productpb"
 )
@@ -18,9 +20,9 @@ type Category struct {
 	Sort       uint64
 	CreatedBy  uint64
 	UpdatedBy  uint64
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	DeletedAt  *time.Time
+	CreatedAt  utils.JSONTime
+	UpdatedAt  utils.JSONTime
+	DeletedAt  *utils.JSONTime
 }
 
 func GetTableName() string {
@@ -58,19 +60,42 @@ func GetOneByCategoryId(categoryId uint64) (*Category, error) {
 	return row, nil
 }
 
-func GetCategories(page, pageSize int64) ([]*Category, error) {
-	rows := make([]*Category, 0, pageSize)
-	err := db.Conn.
+func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) {
+	var total uint64
+	rows := make([]*Category, 0, req.PageSize)
+
+	query := db.Conn.Model(Category{}).
 		Select(GetField()).
-		Order("category_id desc").
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Find(&rows).Error
+		Order("category_id desc")
+
+	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 3)
+	if req.Name != "" {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("name = ?", req.Name)
+		})
+	}
+	if req.GetStatusPresent() != nil {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", req.GetStatus())
+		})
+	}
+	if req.Id > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("category_id = ?", req.Id)
+		})
+	}
+
+	err := query.Scopes(conditions...).
+		Offset((req.Page - 1) * req.PageSize).
+		Limit(req.PageSize).Find(&rows).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("err: %v", err)
+		return nil, 0, fmt.Errorf("err: %v", err)
 	}
-	return rows, nil
+
+	query.Scopes(conditions...).Count(&total)
+
+	return rows, total, nil
 }
 
 func EditCategory(id uint64, data interface{}) bool {
