@@ -68,7 +68,7 @@ func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) 
 		Select(GetField()).
 		Order("category_id desc")
 
-	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 3)
+	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 4)
 	if req.Name != "" {
 		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
 			return db.Where("name = ?", req.Name)
@@ -82,6 +82,11 @@ func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) 
 	if req.Id > 0 {
 		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
 			return db.Where("category_id = ?", req.Id)
+		})
+	}
+	if req.StoreId > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("store_id = ?", req.StoreId)
 		})
 	}
 
