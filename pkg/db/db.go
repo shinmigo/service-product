@@ -1,10 +1,13 @@
 package db
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"goshop/service-product/pkg/utils"
 	"net/url"
+
+	"github.com/unknwon/com"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -31,4 +34,38 @@ func getConnectDbName() string {
 	flag.Parse()
 
 	return *dbName
+}
+
+func BatchInsert(db *gorm.DB, tableName string, fields []string, params [][]interface{}) error {
+	var (
+		buf bytes.Buffer
+	)
+
+	buf.WriteString("INSERT INTO ")
+	buf.WriteString(tableName)
+	buf.WriteString("(")
+	for i, field := range fields {
+		buf.WriteString(field)
+		if i != len(fields)-1 {
+			buf.WriteString(",")
+		}
+	}
+	buf.WriteString(") VALUES ")
+	for i, param := range params {
+		buf.WriteString("(")
+		for j, value := range param {
+			buf.WriteString("'")
+			buf.WriteString(com.ToStr(value))
+			buf.WriteString("'")
+			if j != len(param)-1 {
+				buf.WriteString(",")
+			}
+		}
+		buf.WriteString(")")
+		if i != len(params)-1 {
+			buf.WriteString(",")
+		}
+	}
+
+	return db.Exec(buf.String()).Error
 }

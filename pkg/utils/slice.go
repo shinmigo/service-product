@@ -42,6 +42,15 @@ func SliceDiff(slice1, slice2 []string) (diffSlice []string) {
 	return
 }
 
+func SliceDiffUint64(slice1, slice2 []uint64) (diffSlice []uint64) {
+	for k := range slice1 {
+		if !InSliceUint64(slice1[k], slice2) {
+			diffSlice = append(diffSlice, slice1[k])
+		}
+	}
+	return
+}
+
 //返回slice  slice中的值是slice1和slice2中同时存在的，返回交集
 func SliceIntersect(slice1, slice2 []string) (intersectSlice []string) {
 	for k := range slice1 {

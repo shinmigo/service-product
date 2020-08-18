@@ -90,6 +90,7 @@ func Run(grpcIsTrue chan bool) {
 	productpb.RegisterSpecServiceServer(g, rpc.NewSpec())
 	productpb.RegisterKindServiceServer(g, rpc.NewKind())
 	productpb.RegisterCategoryServiceServer(g, rpc.NewCategory())
+	productpb.RegisterProductServiceServer(g, rpc.NewProduct())
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGTERM, syscall.SIGINT, syscall.SIGKILL, syscall.SIGHUP, syscall.SIGQUIT)
