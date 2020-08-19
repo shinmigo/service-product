@@ -60,6 +60,19 @@ func GetOneByCategoryId(categoryId uint64) (*Category, error) {
 	return row, nil
 }
 
+//不是所有的id都存在记录，将返回false及不存在的id
+func ExistCategoriesByIds(ids []uint64) ([]uint64, bool) {
+	rows := make([]*struct{ CategoryId uint64 }, 0, len(ids))
+	db.Conn.Model(&Category{}).Select("category_id").Where("category_id in (?)", ids).Scan(&rows)
+
+	queryIds := make([]uint64, 0, len(rows))
+	for i := range rows {
+		queryIds = append(queryIds, rows[i].CategoryId)
+	}
+	diffIds := utils.SliceDiffUint64(ids, queryIds)
+	return diffIds, len(diffIds) == 0
+}
+
 func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) {
 	var total uint64
 	rows := make([]*Category, 0, req.PageSize)

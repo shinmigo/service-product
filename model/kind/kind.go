@@ -68,3 +68,10 @@ func GetKindList(kindId uint64, kindName string, page, pageSize uint64) ([]*Kind
 
 	return rows, total, nil
 }
+
+func ExistKindById(id uint64) bool {
+	kind := Kind{}
+	db.Conn.Select("kind_id").Where("kind_id in (?)", id).First(&kind)
+
+	return kind.KindId > 0
+}

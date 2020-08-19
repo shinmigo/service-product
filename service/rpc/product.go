@@ -1,14 +1,22 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"goshop/service-product/model/category"
+	"goshop/service-product/model/kind"
+	"goshop/service-product/model/param"
 	"goshop/service-product/model/product"
 	"goshop/service-product/model/product_image"
 	"goshop/service-product/model/product_param"
 	"goshop/service-product/model/product_spec"
 	"goshop/service-product/model/product_tag"
+	"goshop/service-product/model/tag"
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
+
+	"github.com/unknwon/com"
 
 	"github.com/shinmigo/pb/basepb"
 	"github.com/shinmigo/pb/productpb"
@@ -36,6 +44,26 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		}
 	}()
 
+	if _, ok := category.ExistCategoriesByIds([]uint64{req.CategoryId}); !ok {
+		return nil, errors.New("商品分类不存在")
+	}
+
+	if ok := kind.ExistKindById(req.KindId); !ok {
+		return nil, errors.New("商品类型不存在")
+	}
+
+	if _, ok := tag.ExistTagsByIds(req.Tags); !ok {
+		return nil, errors.New("商品标签不存在")
+	}
+
+	paramIds := make([]uint64, 0, len(req.Param))
+	for i := range req.Param {
+		paramIds = append(paramIds, req.Param[i].ParamId)
+	}
+	if _, ok := param.ExistParamsByIds(paramIds); !ok {
+		return nil, errors.New("商品参数不存在")
+	}
+
 	product := product.Product{
 		StoreId:          req.StoreId,
 		CategoryId:       req.CategoryId,
@@ -59,7 +87,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 
 	//商品图片
 	var imageValues [][]interface{}
-	for i := 0; i < len(req.Images); i++ {
+	for i := range req.Images {
 		imageValues = append(imageValues, []interface{}{product.ProductId, req.Images[i], i})
 	}
 	if len(imageValues) > 0 {
@@ -70,7 +98,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 
 	//商品标签
 	var tagValues [][]interface{}
-	for i := 0; i < len(req.Tags); i++ {
+	for i := range req.Tags {
 		tagValues = append(tagValues, []interface{}{product.ProductId, req.Tags[i]})
 	}
 	if len(tagValues) > 0 {
@@ -81,7 +109,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 
 	//商品参数
 	var paramValues [][]interface{}
-	for i := 0; i < len(req.Param); i++ {
+	for i := range req.Param {
 		paramValues = append(paramValues, []interface{}{product.ProductId, req.Param[i].ParamId, req.Param[i].Value})
 	}
 	if len(paramValues) > 0 {
@@ -95,7 +123,14 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		Time: utils.GetNow(),
 	}
 	var specValues [][]interface{}
-	for i := 0; i < len(req.Spec); i++ {
+	for i := range req.Spec {
+		var spec bytes.Buffer
+		for j := range req.Spec[i].SpecValueId {
+			spec.WriteString(com.ToStr(req.Spec[i].SpecValueId[j]))
+			if j < len(req.Spec[i].SpecValueId)-1 {
+				spec.WriteString(",")
+			}
+		}
 		specValues = append(specValues, []interface{}{
 			product.ProductId,
 			req.Spec[i].Sku,
@@ -106,7 +141,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 			req.Spec[i].Stock,
 			req.Spec[i].Weight,
 			req.Spec[i].Volume,
-			req.Spec[i].Spec,
+			spec.String(),
 			req.AdminId,
 			req.AdminId,
 			now,

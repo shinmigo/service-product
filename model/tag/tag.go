@@ -43,6 +43,19 @@ func GetOneByTagId(tagId uint64) (*Tag, error) {
 	return row, nil
 }
 
+//不是所有的id都存在记录，将返回false及不存在的id
+func ExistTagsByIds(ids []uint64) ([]uint64, bool) {
+	rows := make([]*struct{ TagId uint64 }, 0, len(ids))
+	db.Conn.Model(&Tag{}).Select("tag_id").Where("tag_id in (?)", ids).Scan(&rows)
+
+	queryIds := make([]uint64, 0, len(rows))
+	for i := range rows {
+		queryIds = append(queryIds, rows[i].TagId)
+	}
+	diffIds := utils.SliceDiffUint64(ids, queryIds)
+	return diffIds, len(diffIds) == 0
+}
+
 func GetTagList(tagId uint64, tagName string, page, pageSize uint64) ([]*Tag, uint64, error) {
 	var total uint64
 

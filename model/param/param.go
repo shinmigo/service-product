@@ -70,3 +70,16 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 
 	return rows, total, nil
 }
+
+//不是所有的id都存在记录，将返回false及不存在的id
+func ExistParamsByIds(ids []uint64) ([]uint64, bool) {
+	rows := make([]*struct{ ParamId uint64 }, 0, len(ids))
+	db.Conn.Model(&Param{}).Select("param_id").Where("param_id in (?)", ids).Scan(&rows)
+
+	queryIds := make([]uint64, 0, len(rows))
+	for i := range rows {
+		queryIds = append(queryIds, rows[i].ParamId)
+	}
+	diffIds := utils.SliceDiffUint64(ids, queryIds)
+	return diffIds, len(diffIds) == 0
+}
