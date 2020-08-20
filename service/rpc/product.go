@@ -179,7 +179,7 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		}
 	}()
 
-	if ok := product.ExistProductById(req.ProductId); !ok {
+	if ok := product.ExistProductById(req.ProductId, req.StoreId); !ok {
 		return nil, errors.New("商品不存在")
 	}
 

@@ -27,9 +27,9 @@ type Product struct {
 	DeletedAt        *utils.JSONTime
 }
 
-func ExistProductById(id uint64) bool {
+func ExistProductById(id uint64, storeId uint64) bool {
 	product := Product{}
-	db.Conn.Select("product_id").Where("product_id in (?)", id).First(&product)
+	db.Conn.Select("product_id").Where("product_id = ? and store_id = ?", id, storeId).First(&product)
 
 	return product.ProductId > 0
 }
