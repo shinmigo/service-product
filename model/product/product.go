@@ -1,6 +1,7 @@
 package product
 
 import (
+	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
 
 	"github.com/shinmigo/pb/productpb"
@@ -24,4 +25,17 @@ type Product struct {
 	CreatedAt        utils.JSONTime
 	UpdatedAt        utils.JSONTime
 	DeletedAt        *utils.JSONTime
+}
+
+func ExistProductById(id uint64) bool {
+	product := Product{}
+	db.Conn.Select("product_id").Where("product_id in (?)", id).First(&product)
+
+	return product.ProductId > 0
+}
+
+func EditProduct(product map[string]interface{}) error {
+	err := db.Conn.Model(&Product{}).Where("product_id = ?", product["product_id"]).Update(product).Error
+
+	return err
 }

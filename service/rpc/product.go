@@ -165,3 +165,115 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		State: 1,
 	}, nil
 }
+
+func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*basepb.AnyRes, error) {
+	var err error
+	tx := db.Conn.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		}
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if ok := product.ExistProductById(req.ProductId); !ok {
+		return nil, errors.New("商品不存在")
+	}
+
+	if _, ok := category.ExistCategoriesByIds([]uint64{req.CategoryId}); !ok {
+		return nil, errors.New("商品分类不存在")
+	}
+
+	if ok := kind.ExistKindById(req.KindId); !ok {
+		return nil, errors.New("商品类型不存在")
+	}
+
+	if _, ok := tag.ExistTagsByIds(req.Tags); !ok {
+		return nil, errors.New("商品标签不存在")
+	}
+
+	paramIds := make([]uint64, 0, len(req.Param))
+	for i := range req.Param {
+		paramIds = append(paramIds, req.Param[i].ParamId)
+	}
+	if _, ok := param.ExistParamsByIds(paramIds); !ok {
+		return nil, errors.New("商品参数不存在")
+	}
+
+	//商品
+	productMap := map[string]interface{}{
+		"product_id":        req.ProductId,
+		"store_id":          req.StoreId,
+		"category_id":       req.CategoryId,
+		"kind_id":           req.KindId,
+		"image":             req.Images[0],
+		"name":              req.Name,
+		"spec_type":         req.SpecType,
+		"price":             req.Spec[0].Price,
+		"unit":              req.Unit,
+		"short_description": req.ShortDescription,
+		"description":       req.Description,
+		"status":            req.Status,
+		"updated_by":        req.AdminId,
+	}
+	if err = product.EditProduct(productMap); err != nil {
+		return nil, err
+	}
+
+	//商品图片
+	if err = product_image.EditImages(tx, req.ProductId, req.Images); err != nil {
+		return nil, err
+	}
+
+	//商品标签
+	if err = product_tag.EditTags(tx, req.ProductId, req.Tags); err != nil {
+		return nil, err
+	}
+
+	//商品参数
+	var paramValues [][]interface{}
+	for i := range req.Param {
+		paramValues = append(paramValues, []interface{}{req.Param[i].ParamId, req.Param[i].Value})
+	}
+	if err = product_param.EditParams(tx, req.ProductId, paramValues); err != nil {
+		return nil, err
+	}
+
+	//商品规格
+	var specValues []map[string]interface{}
+	for i := range req.Spec {
+		var spec bytes.Buffer
+		for j := range req.Spec[i].SpecValueId {
+			spec.WriteString(com.ToStr(req.Spec[i].SpecValueId[j]))
+			if j < len(req.Spec[i].SpecValueId)-1 {
+				spec.WriteString(",")
+			}
+		}
+		specValues = append(specValues, map[string]interface{}{
+			"product_spec_id": req.Spec[i].ProductSpecId,
+			"sku":             req.Spec[i].Sku,
+			"image":           req.Spec[i].Image,
+			"price":           req.Spec[i].Price,
+			"old_price":       req.Spec[i].OldPrice,
+			"cost_price":      req.Spec[i].CostPrice,
+			"stock":           req.Spec[i].Stock,
+			"weight":          req.Spec[i].Weight,
+			"volume":          req.Spec[i].Volume,
+			"spec":            spec.String(),
+			"admin_id":        req.AdminId,
+		})
+	}
+	if err = product_spec.EditProductSpec(tx, req.ProductId, specValues); err != nil {
+		return nil, err
+	}
+
+	tx.Commit()
+
+	return &basepb.AnyRes{
+		Id:    req.ProductId,
+		State: 1,
+	}, nil
+}
