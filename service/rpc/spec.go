@@ -89,7 +89,7 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes
 func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes, error) {
 	var err error
 	var specInfo *spec.Spec
-	if specInfo, err = spec.GetOneBySpecId(req.SpecId); err != nil {
+	if specInfo, err = spec.GetOneBySpecId(req.SpecId, req.StoreId); err != nil {
 		return nil, err
 	}
 	tx := db.Conn.Begin()
@@ -162,7 +162,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRe
 func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.AnyRes, error) {
 	var err error
 	var specInfo *spec.Spec
-	if specInfo, err = spec.GetOneBySpecId(req.SpecId); err != nil {
+	if specInfo, err = spec.GetOneBySpecId(req.SpecId, req.StoreId); err != nil {
 		return nil, err
 	}
 
@@ -215,7 +215,7 @@ func (s *Spec) GetSpecList(ctx context.Context, req *productpb.ListSpecReq) (*pr
 		pageSize = req.PageSize
 	}
 
-	rows, total, err := spec.GetSpecList(req.Id, req.Name, page, pageSize)
+	rows, total, err := spec.GetSpecList(req.Id, req.Name, page, pageSize, req.StoreId)
 	if err != nil {
 		return nil, err
 	}
