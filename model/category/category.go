@@ -11,18 +11,19 @@ import (
 )
 
 type Category struct {
-	CategoryId uint64 `gorm:"PRIMARY_KEY"`
-	StoreId    uint64
-	ParentId   uint64
-	Name       string
-	Icon       string
-	Status     productpb.CategoryStatus
-	Sort       uint64
-	CreatedBy  uint64
-	UpdatedBy  uint64
-	CreatedAt  utils.JSONTime
-	UpdatedAt  utils.JSONTime
-	DeletedAt  *utils.JSONTime
+	CategoryId  uint64 `gorm:"PRIMARY_KEY"`
+	StoreId     uint64
+	ParentId    uint64
+	Name        string
+	HasChildren uint64
+	Icon        string
+	Status      productpb.CategoryStatus
+	Sort        uint64
+	CreatedBy   uint64
+	UpdatedBy   uint64
+	CreatedAt   utils.JSONTime
+	UpdatedAt   utils.JSONTime
+	DeletedAt   *utils.JSONTime
 }
 
 func GetTableName() string {
@@ -114,6 +115,37 @@ func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) 
 	query.Scopes(conditions...).Count(&total)
 
 	return rows, total, nil
+}
+
+//根据分类ID，获取最底层的category_id
+func GetBottomChildrenId(categoryIds []uint64) ([]uint64, error) {
+	var categories []*Category
+	if err := db.Conn.Model(Category{}).Select("category_id, has_children").
+		Where("parent_id in (?)", categoryIds).
+		Find(&categories).
+		Error; err != nil {
+		return nil, err
+	}
+
+	bottomChildrenId := make([]uint64, 0, 8)
+	notBottomChildrenId := make([]uint64, 0, 8)
+	for i := range categories {
+		if categories[i].HasChildren == 0 {
+			bottomChildrenId = append(bottomChildrenId, categories[i].CategoryId)
+		} else {
+			notBottomChildrenId = append(notBottomChildrenId, categories[i].CategoryId)
+		}
+	}
+
+	if len(notBottomChildrenId) > 0 {
+		if ids, err := GetBottomChildrenId(notBottomChildrenId); err != nil {
+			return nil, err
+		} else {
+			bottomChildrenId = append(bottomChildrenId, ids...)
+		}
+	}
+
+	return bottomChildrenId, nil
 }
 
 func EditCategory(id uint64, data interface{}) bool {

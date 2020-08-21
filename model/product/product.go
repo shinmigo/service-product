@@ -65,7 +65,12 @@ func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
 	var total uint64
 	rows := make([]*Product, 0, req.PageSize)
 
-	query := db.Conn.Model(Product{}).Select(GetField()).Preload("Category").Preload("Kind").
+	query := db.Conn.Model(Product{}).Select(GetField()).Preload("Category").
+		Preload("Kind").
+		Preload("ProductImage").
+		Preload("ProductTag").
+		Preload("ProductParam").
+		Preload("ProductSpec").
 		Order("product_id desc")
 
 	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 4)
@@ -90,6 +95,19 @@ func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
 	if req.StoreId > 0 {
 		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
 			return db.Where("store_id = ?", req.StoreId)
+		})
+	}
+
+	if req.CategoryId > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			var (
+				childrenId []uint64
+				err        error
+			)
+			if childrenId, err = category.GetBottomChildrenId([]uint64{req.CategoryId}); err != nil || len(childrenId) == 0 {
+				childrenId = []uint64{req.CategoryId}
+			}
+			return db.Where("category_id in (?)", childrenId)
 		})
 	}
 

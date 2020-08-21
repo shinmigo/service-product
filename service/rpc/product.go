@@ -15,6 +15,7 @@ import (
 	"goshop/service-product/model/tag"
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
+	"strings"
 
 	"github.com/unknwon/com"
 
@@ -300,13 +301,64 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 	)
 
 	for i := range products {
+		var (
+			images []string
+			tags   []uint64
+			specs  []*productpb.ProductSpec
+			params []*productpb.ProductParam
+		)
+		for _, image := range products[i].ProductImage {
+			images = append(images, image.Image)
+		}
+
+		for _, tag := range products[i].ProductTag {
+			tags = append(tags, tag.TagId)
+		}
+
+		for _, spec := range products[i].ProductSpec {
+			var (
+				specValueId = make([]uint64, 0, 8)
+			)
+			for _, id := range strings.Split(spec.Spec, ",") {
+				specValueId = append(specValueId, uint64(com.StrTo(id).MustInt64()))
+			}
+			specs = append(specs, &productpb.ProductSpec{
+				Image:         spec.Image,
+				Price:         spec.Price,
+				OldPrice:      spec.OldPrice,
+				CostPrice:     spec.CostPrice,
+				Stock:         spec.Stock,
+				Sku:           spec.Sku,
+				Weight:        spec.Weight,
+				Volume:        spec.Volume,
+				SpecValueId:   specValueId,
+				ProductSpecId: spec.ProductSpecId,
+			})
+		}
+
+		for _, param := range products[i].ProductParam {
+			params = append(params, &productpb.ProductParam{
+				ParamId: param.ParamId,
+				Value:   param.ParamValue,
+			})
+		}
 		productDetails = append(productDetails, &productpb.ProductDetail{
-			ProductId:    products[i].ProductId,
-			ProductName:  products[i].Name,
-			CategoryName: products[i].Category.Name,
-			KindName:     products[i].Kind.Name,
-			Status:       products[i].Status,
-			Price:        products[i].Price,
+			ProductId:        products[i].ProductId,
+			CategoryId:       products[i].CategoryId,
+			KindId:           products[i].KindId,
+			Name:             products[i].Name,
+			ShortDescription: products[i].ShortDescription,
+			Unit:             products[i].Unit,
+			Images:           images,
+			SpecType:         products[i].SpecType,
+			Status:           products[i].Status,
+			Tags:             tags,
+			Spec:             specs,
+			Param:            params,
+			Description:      products[i].Description,
+			CategoryName:     products[i].Category.Name,
+			KindName:         products[i].Kind.Name,
+			Price:            products[i].Price,
 		})
 	}
 
