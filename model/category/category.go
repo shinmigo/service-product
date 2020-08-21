@@ -11,19 +11,19 @@ import (
 )
 
 type Category struct {
-	CategoryId  uint64 `gorm:"PRIMARY_KEY"`
-	StoreId     uint64
-	ParentId    uint64
-	Name        string
-	HasChildren uint64
-	Icon        string
-	Status      productpb.CategoryStatus
-	Sort        uint64
-	CreatedBy   uint64
-	UpdatedBy   uint64
-	CreatedAt   utils.JSONTime
-	UpdatedAt   utils.JSONTime
-	DeletedAt   *utils.JSONTime
+	CategoryId    uint64 `gorm:"PRIMARY_KEY"`
+	StoreId       uint64
+	ParentId      uint64
+	Name          string
+	ChildrenCount uint64
+	Icon          string
+	Status        productpb.CategoryStatus
+	Sort          uint64
+	CreatedBy     uint64
+	UpdatedBy     uint64
+	CreatedAt     utils.JSONTime
+	UpdatedAt     utils.JSONTime
+	DeletedAt     *utils.JSONTime
 }
 
 func GetTableName() string {
@@ -43,6 +43,16 @@ func GetField() []string {
 	return []string{
 		"category_id", "parent_id", "name", "icon", "status", "sort",
 	}
+}
+
+func (c *Category) AfterCreate(tx *gorm.DB) (err error) {
+	if c.CategoryId > 0 && c.ParentId > 0 {
+		err = tx.Model(Category{}).Where("category_id = ?", c.ParentId).
+			Update("children_count", gorm.Expr("children_count + ?", 1)).
+			Error
+	}
+
+	return
 }
 
 func GetOneByCategoryId(categoryId uint64) (*Category, error) {
@@ -130,7 +140,7 @@ func GetBottomChildrenId(categoryIds []uint64) ([]uint64, error) {
 	bottomChildrenId := make([]uint64, 0, 8)
 	notBottomChildrenId := make([]uint64, 0, 8)
 	for i := range categories {
-		if categories[i].HasChildren == 0 {
+		if categories[i].ChildrenCount == 0 {
 			bottomChildrenId = append(bottomChildrenId, categories[i].CategoryId)
 		} else {
 			notBottomChildrenId = append(notBottomChildrenId, categories[i].CategoryId)

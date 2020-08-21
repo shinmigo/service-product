@@ -7,6 +7,8 @@ import (
 	"goshop/service-product/model/category"
 	"goshop/service-product/pkg/db"
 
+	"github.com/jinzhu/gorm"
+
 	"github.com/shinmigo/pb/basepb"
 
 	"github.com/shinmigo/pb/productpb"
@@ -87,16 +89,52 @@ func (c *Category) EditCategoryStatus(ctx context.Context, req *productpb.EditCa
 
 func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryReq) (*basepb.AnyRes, error) {
 	//存在子目录是类目不能删除
-	var count int
+	var (
+		count       int
+		categories  []*category.Category
+		parentCount = make(map[uint64]uint64)
+		err         error
+	)
 	db.Conn.Model(&category.Category{}).Where("parent_id in (?)", req.CategoryId).Count(&count)
-	fmt.Println(len(req.CategoryId), count)
 	if count > 0 {
 		return nil, errors.New("some category exist children")
 	}
 
 	//todo:存在商品的类目不能删除
 
-	db.Conn.Where("category_id IN (?)", req.CategoryId).Delete(&category.Category{})
+	tx := db.Conn.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		} else if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	tx.Model(&category.Category{}).Where("category_id in (?)", req.CategoryId).Find(&categories)
+	for i := range categories {
+		if categories[i].ParentId == 0 {
+			continue
+		}
+
+		if _, ok := parentCount[categories[i].ParentId]; ok {
+			parentCount[categories[i].ParentId]++
+		} else {
+			parentCount[categories[i].ParentId] = 1
+		}
+	}
+
+	tx.Where("category_id IN (?)", req.CategoryId).Delete(&category.Category{})
+	for categoryId, childrenCount := range parentCount {
+		if err := tx.Model(category.Category{}).Where("category_id = ?", categoryId).
+			Update("children_count", gorm.Expr("children_count - ?", childrenCount)).
+			Error; err != nil {
+			return nil, err
+		}
+	}
+
+	tx.Commit()
 
 	return &basepb.AnyRes{
 		Id:    0,
