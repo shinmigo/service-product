@@ -1,8 +1,17 @@
 package product
 
 import (
+	"fmt"
+	"goshop/service-product/model/category"
+	"goshop/service-product/model/kind"
+	"goshop/service-product/model/product_image"
+	"goshop/service-product/model/product_param"
+	"goshop/service-product/model/product_spec"
+	"goshop/service-product/model/product_tag"
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
+
+	"github.com/jinzhu/gorm"
 
 	"github.com/shinmigo/pb/productpb"
 )
@@ -25,6 +34,18 @@ type Product struct {
 	CreatedAt        utils.JSONTime
 	UpdatedAt        utils.JSONTime
 	DeletedAt        *utils.JSONTime
+	Kind             kind.Kind                    `gorm:"foreignkey:KindId;association_foreignkey:KindId"`
+	ProductImage     []product_image.ProductImage `gorm:"foreignkey:ProductId"`
+	Category         category.Category            `gorm:"foreignkey:CategoryId;association_foreignkey:CategoryId"`
+	ProductTag       []product_tag.ProductTag     `gorm:"foreignkey:ProductId"`
+	ProductParam     []product_param.ProductParam `gorm:"foreignkey:ProductId"`
+	ProductSpec      []product_spec.ProductSpec   `gorm:"foreignkey:ProductId"`
+}
+
+func GetField() []string {
+	return []string{
+		"product_id", "category_id", "kind_id", "image", "name", "spec_type", "price", "unit", "short_description", "description", "status",
+	}
 }
 
 func ExistProductById(id uint64, storeId uint64) bool {
@@ -38,4 +59,49 @@ func EditProduct(product map[string]interface{}) error {
 	err := db.Conn.Model(&Product{}).Where("product_id = ?", product["product_id"]).Update(product).Error
 
 	return err
+}
+
+func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
+	var total uint64
+	rows := make([]*Product, 0, req.PageSize)
+
+	query := db.Conn.Model(Product{}).Select(GetField()).Preload("Category").Preload("Kind").
+		Order("product_id desc")
+
+	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 4)
+	if req.Name != "" {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("name like ?", fmt.Sprintf("%%%v%%", req.Name))
+		})
+	}
+
+	if req.Id > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("product_id = ?", req.Id)
+		})
+	}
+
+	if req.Status > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("status = ?", req.Status)
+		})
+	}
+
+	if req.StoreId > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("store_id = ?", req.StoreId)
+		})
+	}
+
+	err := query.Scopes(conditions...).
+		Offset((req.Page - 1) * req.PageSize).
+		Limit(req.PageSize).Find(&rows).Error
+
+	if err != nil {
+		return nil, 0, fmt.Errorf("err: %v", err)
+	}
+
+	query.Scopes(conditions...).Count(&total)
+
+	return rows, total, nil
 }

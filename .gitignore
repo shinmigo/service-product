@@ -2,6 +2,7 @@ service-product.exe
 service-product.exe*
 service-product
 publish.sh
+run.sh
 runtime/*
 debug
 */.settings/

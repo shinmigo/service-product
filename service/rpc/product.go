@@ -277,3 +277,41 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		State: 1,
 	}, nil
 }
+
+func (p *Product) DelProduct(ctx context.Context, req *productpb.DelProductReq) (*basepb.AnyRes, error) {
+	if err := db.Conn.Where("product_id = ? and store_id = ?", req.ProductId, req.StoreId).Delete(&product.Product{}).Error; err != nil {
+		return nil, err
+	}
+
+	return &basepb.AnyRes{
+		Id:    req.ProductId,
+		State: 1,
+	}, nil
+}
+
+func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProductReq) (*productpb.ListProductRes, error) {
+	products, total, err := product.GetProducts(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		productDetails = make([]*productpb.ProductDetail, 0, req.PageSize)
+	)
+
+	for i := range products {
+		productDetails = append(productDetails, &productpb.ProductDetail{
+			ProductId:    products[i].ProductId,
+			ProductName:  products[i].Name,
+			CategoryName: products[i].Category.Name,
+			KindName:     products[i].Kind.Name,
+			Status:       products[i].Status,
+			Price:        products[i].Price,
+		})
+	}
+
+	return &productpb.ListProductRes{
+		Total:    total,
+		Products: productDetails,
+	}, nil
+}
