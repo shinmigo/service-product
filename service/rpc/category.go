@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"goshop/service-product/model/category"
+	"goshop/service-product/model/product"
 	"goshop/service-product/pkg/db"
 
 	"github.com/jinzhu/gorm"
@@ -100,7 +101,10 @@ func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryRe
 		return nil, errors.New("some category exist children")
 	}
 
-	//todo:存在商品的类目不能删除
+	//存在商品的类目不能删除
+	if product.ExistProductByCategoriesId(req.CategoryId) {
+		return nil, errors.New("some category exist products")
+	}
 
 	tx := db.Conn.Begin()
 	defer func() {

@@ -55,6 +55,14 @@ func ExistProductById(id uint64, storeId uint64) bool {
 	return product.ProductId > 0
 }
 
+//根据分类ID确定是否存在商品
+func ExistProductByCategoriesId(ids []uint64) bool {
+	product := Product{}
+	db.Conn.Select("product_id").Where("category_id in (?)", ids).First(&product)
+
+	return product.ProductId > 0
+}
+
 func EditProduct(product map[string]interface{}) error {
 	err := db.Conn.Model(&Product{}).Where("product_id = ?", product["product_id"]).Update(product).Error
 
