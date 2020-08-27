@@ -1,12 +1,12 @@
 mysql:
-  host: 127.0.0.1:3306
+  host: 10.32.5.87:3306
   user: root
-  password: 123456
-  database: test
+  password: 4Ut8urkXVC*khX2K
+  database: goshop_product
 
 redis:
-  host: 127.0.0.1:6379
-  password: xxx
+  host: 10.32.5.87:6379
+  password:
   databse: 10
 
 etcd:
@@ -15,5 +15,6 @@ etcd:
 
 grpc:
   name: project/product
+  # host如果指定了端口，那么端口就是固定的，格式可以是：127.0.0.1:5556或:6688, 否则会动态生成
   host:
   port: 10000
