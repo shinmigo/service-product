@@ -2,6 +2,7 @@ package param
 
 import (
 	"fmt"
+
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
@@ -69,6 +70,24 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 	query.Count(&total)
 
 	return rows, total, nil
+}
+
+func GetParamsByKindId(kindIds []uint64) (map[uint64][]*Param, error) {
+	rows := make([]*Param, 0, len(kindIds))
+	err := db.Conn.Table(GetTableName()).
+		Select(GetField()).
+		Where("kind_id in (?)", kindIds).
+		Find(&rows).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	list := make(map[uint64][]*Param, len(kindIds))
+	for k := range rows {
+		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
+	}
+	return list, nil
 }
 
 //不是所有的id都存在记录，将返回false及不存在的id

@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
@@ -64,4 +65,22 @@ func GetSpecList(specId uint64, specName string, page, pageSize, storeId uint64)
 	query.Count(&total)
 
 	return rows, total, nil
+}
+
+func GetSpecsByKindId(kindIds []uint64) (map[uint64][]*Spec, error) {
+	rows := make([]*Spec, 0, len(kindIds))
+	err := db.Conn.Table(GetTableName()).
+		Select(GetField()).
+		Where("kind_id in (?)", kindIds).
+		Find(&rows).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	list := make(map[uint64][]*Spec, len(kindIds))
+	for k := range rows {
+		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
+	}
+	return list, nil
 }

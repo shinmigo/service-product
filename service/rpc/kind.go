@@ -1,11 +1,12 @@
 package rpc
 
 import (
+	"encoding/json"
+
 	"goshop/service-product/model/kind"
 	"goshop/service-product/model/param"
 	"goshop/service-product/model/spec"
 	"goshop/service-product/pkg/db"
-	"goshop/service-product/pkg/utils"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -138,19 +139,37 @@ func (k *Kind) GetKindList(ctx context.Context, req *productpb.ListKindReq) (*pr
 		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
+	kindIds := make([]uint64, 0, len(rows))
+	for k := range rows {
+		kindIds = append(kindIds, rows[k].KindId)
+	}
+
+	params, _ := param.GetParamsByKindId(kindIds)
+	specs, _ := spec.GetSpecsByKindId(kindIds)
+
+	if ctx.Err() == context.Canceled {
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
+	}
 	list := make([]*productpb.KindDetail, 0, len(rows))
 	for k := range rows {
-		list = append(list, &productpb.KindDetail{
-			KindId:    rows[k].KindId,
-			StoreId:   rows[k].StoreId,
-			Name:      rows[k].Name,
-			ParamQty:  rows[k].ParamQty,
-			SpecQty:   rows[k].SpecQty,
-			CreatedBy: rows[k].CreatedBy,
-			UpdatedBy: rows[k].UpdatedBy,
-			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
-			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
-		})
+		paramRel := make([]*productpb.ParamRel, 0, 8)
+		if _, ok := params[rows[k].KindId]; ok {
+			b1, _ := json.Marshal(params[rows[k].KindId])
+			_ = json.Unmarshal(b1, &paramRel)
+		}
+
+		specRel := make([]*productpb.SpecRel, 0, 8)
+		if _, ok := specs[rows[k].KindId]; ok {
+			b2, _ := json.Marshal(specs[rows[k].KindId])
+			_ = json.Unmarshal(b2, &specRel)
+		}
+
+		a1, _ := json.Marshal(rows[k])
+		a2 := &productpb.KindDetail{}
+		_ = json.Unmarshal(a1, a2)
+		a2.Params = paramRel
+		a2.Specs = specRel
+		list = append(list, a2)
 	}
 	return &productpb.ListKindRes{
 		Total: total,
