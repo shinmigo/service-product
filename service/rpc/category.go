@@ -78,8 +78,9 @@ func (c *Category) EditCategory(ctx context.Context, req *productpb.Category) (*
 }
 
 func (c *Category) EditCategoryStatus(ctx context.Context, req *productpb.EditCategoryStatusReq) (*basepb.AnyRes, error) {
-	db.Conn.Table(category.GetTableName()).Updates(map[string]interface{}{
-		"status": req.Status,
+	db.Conn.Table(category.GetTableName()).Where("category_id in (?)", req.CategoryId).Updates(map[string]interface{}{
+		"status":     req.Status,
+		"updated_by": req.AdminId,
 	})
 
 	return &basepb.AnyRes{
