@@ -6,6 +6,7 @@ import (
 	"goshop/service-product/pkg/utils"
 
 	"github.com/jinzhu/gorm"
+	"github.com/unknwon/com"
 
 	"github.com/shinmigo/pb/productpb"
 )
@@ -15,6 +16,7 @@ type Category struct {
 	StoreId       uint64
 	ParentId      uint64
 	Name          string
+	Path          string
 	ChildrenCount uint64
 	Icon          string
 	Status        productpb.CategoryStatus
@@ -41,28 +43,44 @@ type Info struct {
 
 func GetField() []string {
 	return []string{
-		"category_id", "parent_id", "name", "icon", "status", "sort",
+		"category_id", "parent_id", "name", "path", "children_count", "icon", "status", "sort",
 	}
 }
 
 func (c *Category) AfterCreate(tx *gorm.DB) (err error) {
 	if c.CategoryId > 0 && c.ParentId > 0 {
-		err = tx.Model(Category{}).Where("category_id = ?", c.ParentId).
-			Update("children_count", gorm.Expr("children_count + ?", 1)).
+		if err = tx.Model(Category{}).Where("category_id = ?", c.ParentId).
+			Update(map[string]interface{}{
+				"children_count": gorm.Expr("children_count + ?", 1),
+			}).
+			Error; err != nil {
+			return
+		}
+		if err = tx.Model(Category{}).Where("category_id = ?", c.CategoryId).
+			Update("path", gorm.Expr("CONCAT(path, ?)", ","+com.ToStr(c.CategoryId))).
+			Error; err != nil {
+			return
+		}
+	} else {
+		err = tx.Model(Category{}).Where("category_id = ?", c.CategoryId).
+			Update("path", c.CategoryId).
 			Error
 	}
 
 	return
 }
 
-func GetOneByCategoryId(categoryId uint64) (*Category, error) {
+func GetOneByCategoryId(categoryId uint64, storeId uint64) (*Category, error) {
 	if categoryId == 0 {
 		return nil, fmt.Errorf("category_id is null")
 	}
 	row := &Category{}
 	err := db.Conn.
 		Select(GetField()).
-		Where("category_id = ?", categoryId).
+		Where(map[string]interface{}{
+			"category_id": categoryId,
+			"store_id":    storeId,
+		}).
 		First(row).Error
 
 	if err != nil {

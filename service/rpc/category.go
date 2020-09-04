@@ -8,6 +8,8 @@ import (
 	"goshop/service-product/model/product"
 	"goshop/service-product/pkg/db"
 
+	"github.com/unknwon/com"
+
 	"github.com/jinzhu/gorm"
 
 	"github.com/shinmigo/pb/basepb"
@@ -23,22 +25,31 @@ func NewCategory() *Category {
 }
 
 func (c *Category) AddCategory(ctx context.Context, req *productpb.Category) (*basepb.AnyRes, error) {
+	var (
+		parentCategory *category.Category
+		path           = ""
+		err            error
+	)
+
 	if req.ParentId != 0 {
-		if _, err := category.GetOneByCategoryId(req.ParentId); err != nil {
+		if parentCategory, err = category.GetOneByCategoryId(req.ParentId, req.StoreId); err != nil {
 			return nil, err
 		}
+		path = parentCategory.Path
 	}
 
 	row := category.Category{
 		StoreId:   req.StoreId,
 		ParentId:  req.ParentId,
 		Name:      req.Name,
+		Path:      path,
 		Icon:      req.Icon,
 		Status:    req.Status,
 		Sort:      req.Sort,
 		CreatedBy: req.AdminId,
 		UpdatedBy: req.AdminId,
 	}
+
 	if err := db.Conn.Create(&row).Error; err != nil {
 		return nil, err
 	}
@@ -50,19 +61,47 @@ func (c *Category) AddCategory(ctx context.Context, req *productpb.Category) (*b
 }
 
 func (c *Category) EditCategory(ctx context.Context, req *productpb.Category) (*basepb.AnyRes, error) {
+	var (
+		parentCategory *category.Category
+		oldCategory    *category.Category
+		path           = ""
+		err            error
+	)
+
+	tx := db.Conn.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		} else if err != nil {
+			tx.Rollback()
+		}
+	}()
+
 	if req.ParentId == req.CategoryId {
 		return nil, fmt.Errorf("parent_id cannot equal to category_id")
 	}
 	if req.ParentId != 0 {
-		_, err := category.GetOneByCategoryId(req.ParentId)
-		if err != nil {
+		if parentCategory, err = category.GetOneByCategoryId(req.ParentId, req.StoreId); err != nil {
 			return nil, err
 		}
+		path = parentCategory.Path
 	}
-	if err := db.Conn.Table(category.GetTableName()).Where("category_id = ?", req.CategoryId).Updates(map[string]interface{}{
+	if oldCategory, err = category.GetOneByCategoryId(req.CategoryId, req.StoreId); err != nil {
+		return nil, err
+	}
+	if oldCategory.CategoryId == 0 {
+		return nil, errors.New("category isn't exist")
+	}
+
+	if err := tx.Model(category.Category{}).Where(map[string]interface{}{
+		"category_id": req.CategoryId,
+		"store_id":    req.StoreId,
+	}).Update(map[string]interface{}{
 		"store_id":   req.StoreId,
 		"parent_id":  req.ParentId,
 		"name":       req.Name,
+		"path":       path,
 		"icon":       req.Icon,
 		"status":     req.Status,
 		"sort":       req.Sort,
@@ -70,6 +109,50 @@ func (c *Category) EditCategory(ctx context.Context, req *productpb.Category) (*
 	}).Error; err != nil {
 		return nil, err
 	}
+
+	//更新分类所属需同步更新相关数据
+	if req.ParentId != oldCategory.ParentId {
+		if oldCategory.ParentId > 0 {
+			if err = tx.Model(category.Category{}).Where("category_id = ?", oldCategory.ParentId).
+				Update(map[string]interface{}{
+					"children_count": gorm.Expr("children_count - ?", 1),
+				}).
+				Error; err != nil {
+				return nil, err
+			}
+		}
+		if req.ParentId > 0 {
+			if err = tx.Model(category.Category{}).Where("category_id = ?", req.ParentId).
+				Update(map[string]interface{}{
+					"children_count": gorm.Expr("children_count + ?", 1),
+				}).
+				Error; err != nil {
+				return nil, err
+			}
+			path += "," + com.ToStr(req.CategoryId)
+		} else {
+			path = com.ToStr(req.CategoryId)
+		}
+
+		if err = tx.Model(category.Category{}).Where("category_id = ?", req.CategoryId).
+			Update("path", path).
+			Error; err != nil {
+			return nil, err
+		}
+
+		//更新子类的path
+		if oldCategory.ChildrenCount > 0 {
+			expr := "CONCAT('" + path + ",', SUBSTRING(path,POSITION('" + oldCategory.Path + ",' in path)+length('" + oldCategory.Path + ",')))"
+			if err = tx.Model(category.Category{}).Where("path like ?", oldCategory.Path+",%").
+				Updates(map[string]interface{}{
+					"path": gorm.Expr(expr),
+				}).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	tx.Commit()
 
 	return &basepb.AnyRes{
 		Id:    req.CategoryId,
