@@ -242,6 +242,7 @@ func (c *Category) GetCategoryList(ctx context.Context, req *productpb.ListCateg
 			CategoryId: row.CategoryId,
 			ParentId:   row.ParentId,
 			Name:       row.Name,
+			Path:       row.Path,
 			Icon:       row.Icon,
 			Status:     row.Status,
 			Sort:       row.Sort,
