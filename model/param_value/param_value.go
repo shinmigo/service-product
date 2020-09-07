@@ -3,6 +3,7 @@ package param_value
 import (
 	"bytes"
 	"fmt"
+
 	"goshop/service-product/pkg/utils"
 
 	"github.com/jinzhu/gorm"
@@ -11,12 +12,13 @@ import (
 )
 
 type ParamValue struct {
-	ParamId   uint64
-	Content   string
-	CreatedBy uint64
-	UpdatedBy uint64
-	CreatedAt utils.JSONTime
-	UpdatedAt utils.JSONTime
+	ParamValueId uint64 `json:"param_value_id" gorm:"PRIMARY_KEY"`
+	ParamId      uint64
+	Content      string
+	CreatedBy    uint64
+	UpdatedBy    uint64
+	CreatedAt    utils.JSONTime
+	UpdatedAt    utils.JSONTime
 }
 
 type ParamContent struct {

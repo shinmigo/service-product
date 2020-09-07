@@ -7,8 +7,6 @@ import (
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 type Param struct {
@@ -77,7 +75,7 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 	return rows, total, nil
 }
 
-func GetParamsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
+func GetParamsByKindId(kindIds []uint64) (map[uint64][]*Param, error) {
 	rows := make([]*Param, 0, len(kindIds))
 	err := db.Conn.Table(GetTableName()).
 		Preload("Contents").
@@ -89,23 +87,11 @@ func GetParamsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
 		return nil, err
 	}
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
-	list := make(map[uint64][]interface{}, len(kindIds))
+	list := make(map[uint64][]*Param, len(kindIds))
 	for k := range rows {
-		contents := make([]string, 0, 8)
-		if len(rows[k].Contents) > 0 {
-			for i := range rows[k].Contents {
-				contents = append(contents, rows[k].Contents[i].Content)
-			}
-		}
-
-		b, _ := json.Marshal(&rows[k])
-		var m map[string]interface{}
-		_ = json.Unmarshal(b, &m)
-		m["contents"] = contents
-
-		list[rows[k].KindId] = append(list[rows[k].KindId], m)
+		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
 	}
+
 	return list, nil
 }
 

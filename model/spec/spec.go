@@ -7,8 +7,6 @@ import (
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 type Spec struct {
@@ -74,7 +72,7 @@ func GetSpecList(specId uint64, specName string, page, pageSize, storeId uint64)
 	return rows, total, nil
 }
 
-func GetSpecsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
+func GetSpecsByKindId(kindIds []uint64) (map[uint64][]*Spec, error) {
 	rows := make([]*Spec, 0, len(kindIds))
 	err := db.Conn.Table(GetTableName()).
 		Preload("Contents").
@@ -86,22 +84,9 @@ func GetSpecsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
 		return nil, err
 	}
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
-	list := make(map[uint64][]interface{}, len(kindIds))
+	list := make(map[uint64][]*Spec, len(kindIds))
 	for k := range rows {
-		contents := make([]string, 0, 8)
-		if len(rows[k].Contents) > 0 {
-			for i := range rows[k].Contents {
-				contents = append(contents, rows[k].Contents[i].Content)
-			}
-		}
-
-		b, _ := json.Marshal(&rows[k])
-		var m map[string]interface{}
-		_ = json.Unmarshal(b, &m)
-		m["contents"] = contents
-
-		list[rows[k].KindId] = append(list[rows[k].KindId], m)
+		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
 	}
 	return list, nil
 }

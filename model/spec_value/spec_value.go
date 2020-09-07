@@ -11,12 +11,13 @@ import (
 )
 
 type SpecValue struct {
-	SpecId    uint64
-	Content   string
-	CreatedBy uint64
-	UpdatedBy uint64
-	CreatedAt utils.JSONTime
-	UpdatedAt utils.JSONTime
+	SpecValueId uint64 `json:"spec_value_id" gorm:"PRIMARY_KEY"`
+	SpecId      uint64
+	Content     string
+	CreatedBy   uint64
+	UpdatedBy   uint64
+	CreatedAt   utils.JSONTime
+	UpdatedAt   utils.JSONTime
 }
 
 type SpecContent struct {
