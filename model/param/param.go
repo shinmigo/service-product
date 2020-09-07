@@ -3,22 +3,26 @@ package param
 import (
 	"fmt"
 
+	"goshop/service-product/model/param_value"
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 type Param struct {
-	ParamId   uint64         `json:"param_id" gorm:"PRIMARY_KEY"`
-	StoreId   uint64         `json:"store_id"`
-	KindId    uint64         `json:"kind_id"`
-	Name      string         `json:"name"`
-	Type      int32          `json:"type"`
-	Sort      uint64         `json:"sort"`
-	CreatedBy uint64         `json:"created_by"`
-	UpdatedBy uint64         `json:"updated_by"`
-	CreatedAt utils.JSONTime `json:"created_at"`
-	UpdatedAt utils.JSONTime `json:"updated_at"`
+	ParamId   uint64                    `json:"param_id" gorm:"PRIMARY_KEY"`
+	StoreId   uint64                    `json:"store_id"`
+	KindId    uint64                    `json:"kind_id"`
+	Name      string                    `json:"name"`
+	Type      int32                     `json:"type"`
+	Sort      uint64                    `json:"sort"`
+	CreatedBy uint64                    `json:"created_by"`
+	UpdatedBy uint64                    `json:"updated_by"`
+	CreatedAt utils.JSONTime            `json:"created_at"`
+	UpdatedAt utils.JSONTime            `json:"updated_at"`
+	Contents  []*param_value.ParamValue `json:"contents" gorm:"foreignkey:ParamId;association_foreignkey:ParamId"`
 }
 
 func GetTableName() string {
@@ -39,6 +43,7 @@ func GetOneByParamId(ParamId uint64) (*Param, error) {
 	row := &Param{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
+		Preload("Contents").
 		Where("param_id = ?", ParamId).
 		First(row).Error
 
@@ -53,7 +58,7 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 
 	rows := make([]*Param, 0, pageSize)
 
-	query := db.Conn.Table(GetTableName()).Select(GetField())
+	query := db.Conn.Table(GetTableName()).Select(GetField()).Preload("Contents")
 	if paramId > 0 {
 		query = query.Where("param_id = ?", paramId)
 	}
@@ -72,9 +77,10 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 	return rows, total, nil
 }
 
-func GetParamsByKindId(kindIds []uint64) (map[uint64][]*Param, error) {
+func GetParamsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
 	rows := make([]*Param, 0, len(kindIds))
 	err := db.Conn.Table(GetTableName()).
+		Preload("Contents").
 		Select(GetField()).
 		Where("kind_id in (?)", kindIds).
 		Find(&rows).Error
@@ -83,9 +89,22 @@ func GetParamsByKindId(kindIds []uint64) (map[uint64][]*Param, error) {
 		return nil, err
 	}
 
-	list := make(map[uint64][]*Param, len(kindIds))
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	list := make(map[uint64][]interface{}, len(kindIds))
 	for k := range rows {
-		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
+		contents := make([]string, 0, 8)
+		if len(rows[k].Contents) > 0 {
+			for i := range rows[k].Contents {
+				contents = append(contents, rows[k].Contents[i].Content)
+			}
+		}
+
+		b, _ := json.Marshal(&rows[k])
+		var m map[string]interface{}
+		_ = json.Unmarshal(b, &m)
+		m["contents"] = contents
+
+		list[rows[k].KindId] = append(list[rows[k].KindId], m)
 	}
 	return list, nil
 }

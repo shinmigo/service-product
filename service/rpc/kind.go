@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"encoding/json"
+	"fmt"
 
 	"goshop/service-product/model/kind"
 	"goshop/service-product/model/param"
@@ -154,19 +154,19 @@ func (k *Kind) GetKindList(ctx context.Context, req *productpb.ListKindReq) (*pr
 	for k := range rows {
 		paramRel := make([]*productpb.ParamRel, 0, 8)
 		if _, ok := params[rows[k].KindId]; ok {
-			b1, _ := json.Marshal(params[rows[k].KindId])
-			_ = json.Unmarshal(b1, &paramRel)
+			b1, _ := jsonLib.Marshal(params[rows[k].KindId])
+			_ = jsonLib.Unmarshal(b1, &paramRel)
 		}
 
 		specRel := make([]*productpb.SpecRel, 0, 8)
 		if _, ok := specs[rows[k].KindId]; ok {
-			b2, _ := json.Marshal(specs[rows[k].KindId])
-			_ = json.Unmarshal(b2, &specRel)
+			b2, _ := jsonLib.Marshal(specs[rows[k].KindId])
+			_ = jsonLib.Unmarshal(b2, &specRel)
 		}
 
-		a1, _ := json.Marshal(rows[k])
+		a1, _ := jsonLib.Marshal(rows[k])
 		a2 := &productpb.KindDetail{}
-		_ = json.Unmarshal(a1, a2)
+		_ = jsonLib.Unmarshal(a1, a2)
 		a2.Params = paramRel
 		a2.Specs = specRel
 		list = append(list, a2)
@@ -181,6 +181,16 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*bas
 	var err error
 	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
+	}
+
+	existParamIds := make([]struct{ ParamId uint64 }, 0, len(req.ParamIds))
+	db.Conn.Table(param.GetTableName()).
+		Select("param_id").
+		Where("param_id in (?) and kind_id > 0", req.ParamIds).
+		Scan(&existParamIds)
+
+	if len(existParamIds) > 0 {
+		return nil, fmt.Errorf("绑定参数失败")
 	}
 
 	tx := db.Conn.Begin()
@@ -236,6 +246,16 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*basep
 	var err error
 	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
 		return nil, err
+	}
+
+	existSpecIds := make([]struct{ SpecId uint64 }, 0, len(req.SpecIds))
+	db.Conn.Table(param.GetTableName()).
+		Select("spec_id").
+		Where("spec_id in (?) and kind_id > 0", req.SpecIds).
+		Scan(&existSpecIds)
+
+	if len(existSpecIds) > 0 {
+		return nil, fmt.Errorf("绑定规格失败")
 	}
 
 	tx := db.Conn.Begin()

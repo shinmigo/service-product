@@ -3,21 +3,25 @@ package spec
 import (
 	"fmt"
 
+	"goshop/service-product/model/spec_value"
 	"goshop/service-product/pkg/utils"
 
 	"goshop/service-product/pkg/db"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 type Spec struct {
-	SpecId    uint64         `json:"spec_id" gorm:"PRIMARY_KEY"`
-	StoreId   uint64         `json:"store_id"`
-	KindId    uint64         `json:"kind_id"`
-	Name      string         `json:"name"`
-	Sort      uint64         `json:"sort"`
-	CreatedBy uint64         `json:"created_by"`
-	UpdatedBy uint64         `json:"updated_by"`
-	CreatedAt utils.JSONTime `json:"created_at"`
-	UpdatedAt utils.JSONTime `json:"updated_at"`
+	SpecId    uint64                  `json:"spec_id" gorm:"PRIMARY_KEY"`
+	StoreId   uint64                  `json:"store_id"`
+	KindId    uint64                  `json:"kind_id"`
+	Name      string                  `json:"name"`
+	Sort      uint64                  `json:"sort"`
+	CreatedBy uint64                  `json:"created_by"`
+	UpdatedBy uint64                  `json:"updated_by"`
+	CreatedAt utils.JSONTime          `json:"created_at"`
+	UpdatedAt utils.JSONTime          `json:"updated_at"`
+	Contents  []*spec_value.SpecValue `json:"contents" gorm:"foreignkey:SpecId;association_foreignkey:SpecId"`
 }
 
 func GetTableName() string {
@@ -38,6 +42,7 @@ func GetOneBySpecId(specId, storeId uint64) (*Spec, error) {
 	row := &Spec{}
 	err := db.Conn.Table(GetTableName()).
 		Select(GetField()).
+		Preload("Contents").
 		Where("spec_id = ? AND store_id= ?", specId, storeId).
 		First(row).Error
 
@@ -50,7 +55,9 @@ func GetOneBySpecId(specId, storeId uint64) (*Spec, error) {
 func GetSpecList(specId uint64, specName string, page, pageSize, storeId uint64) ([]*Spec, uint64, error) {
 	var total uint64
 	rows := make([]*Spec, 0, pageSize)
-	query := db.Conn.Table(GetTableName()).Select(GetField()).Where("store_id = ?", storeId)
+	query := db.Conn.Table(GetTableName()).Select(GetField()).
+		Preload("Contents").
+		Where("store_id = ?", storeId)
 	if specId > 0 {
 		query = query.Where("spec_id = ?", specId)
 	}
@@ -67,9 +74,10 @@ func GetSpecList(specId uint64, specName string, page, pageSize, storeId uint64)
 	return rows, total, nil
 }
 
-func GetSpecsByKindId(kindIds []uint64) (map[uint64][]*Spec, error) {
+func GetSpecsByKindId(kindIds []uint64) (map[uint64][]interface{}, error) {
 	rows := make([]*Spec, 0, len(kindIds))
 	err := db.Conn.Table(GetTableName()).
+		Preload("Contents").
 		Select(GetField()).
 		Where("kind_id in (?)", kindIds).
 		Find(&rows).Error
@@ -78,9 +86,22 @@ func GetSpecsByKindId(kindIds []uint64) (map[uint64][]*Spec, error) {
 		return nil, err
 	}
 
-	list := make(map[uint64][]*Spec, len(kindIds))
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	list := make(map[uint64][]interface{}, len(kindIds))
 	for k := range rows {
-		list[rows[k].KindId] = append(list[rows[k].KindId], rows[k])
+		contents := make([]string, 0, 8)
+		if len(rows[k].Contents) > 0 {
+			for i := range rows[k].Contents {
+				contents = append(contents, rows[k].Contents[i].Content)
+			}
+		}
+
+		b, _ := json.Marshal(&rows[k])
+		var m map[string]interface{}
+		_ = json.Unmarshal(b, &m)
+		m["contents"] = contents
+
+		list[rows[k].KindId] = append(list[rows[k].KindId], m)
 	}
 	return list, nil
 }

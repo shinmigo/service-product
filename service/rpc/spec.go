@@ -220,40 +220,60 @@ func (s *Spec) GetSpecList(ctx context.Context, req *productpb.ListSpecReq) (*pr
 		return nil, err
 	}
 
-	rowLen := len(rows)
-	specIds := make([]uint64, 0, rowLen)
-	for k := range rows {
-		specIds = append(specIds, rows[k].SpecId)
-	}
-
-	getContents, _ := spec_value.GetContentsBySpecIds(specIds)
-
 	if ctx.Err() == context.Canceled {
 		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
-	list := make([]*productpb.SpecDetail, 0, rowLen)
+	list := make([]*productpb.SpecDetail, 0, len(rows))
 	for k := range rows {
 		contents := make([]string, 0, 8)
-		if _, ok := getContents[rows[k].SpecId]; ok {
-			contents = getContents[rows[k].SpecId]
+		if len(rows[k].Contents) > 0 {
+			for i := range rows[k].Contents {
+				contents = append(contents, rows[k].Contents[i].Content)
+			}
 		}
-		list = append(list, &productpb.SpecDetail{
-			SpecId:    rows[k].SpecId,
-			StoreId:   rows[k].StoreId,
-			KindId:    rows[k].KindId,
-			Name:      rows[k].Name,
-			Sort:      rows[k].Sort,
-			CreatedBy: rows[k].CreatedBy,
-			UpdatedBy: rows[k].UpdatedBy,
-			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
-			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
-			Contents:  contents,
-		})
+
+		buf1, _ := jsonLib.Marshal(rows[k])
+		buf2 := &productpb.SpecDetail{}
+		_ = jsonLib.Unmarshal(buf1, buf2)
+		buf2.Contents = contents
+		list = append(list, buf2)
 	}
 
 	return &productpb.ListSpecRes{
 		Total: total,
 		Specs: list,
+	}, nil
+}
+
+func (p *Spec) GetBindSpecAll(ctx context.Context, req *productpb.BindSpecAllReq) (*productpb.BindSpecAllRes, error) {
+	rows := make([]struct {
+		SpecId uint64
+		Name   string
+	}, 0, 32)
+
+	query := db.Conn.Table(spec.GetTableName()).Select("spec_id, name").Where("kind_id = 0")
+
+	if len(req.Name) > 0 {
+		query = query.Where("name like ?", req.Name+"%")
+	}
+
+	query.Scan(&rows)
+
+	rowLen := len(rows)
+	if rowLen == 0 {
+		return nil, nil
+	}
+
+	list := make([]*productpb.BindSpecAll, 0, rowLen)
+	for k := range rows {
+		list = append(list, &productpb.BindSpecAll{
+			SpecId: rows[k].SpecId,
+			Name:   rows[k].Name,
+		})
+	}
+
+	return &productpb.BindSpecAllRes{
+		Data: list,
 	}, nil
 }

@@ -219,41 +219,60 @@ func (p *Param) GetParamList(ctx context.Context, req *productpb.ListParamReq) (
 		return nil, err
 	}
 
-	rowLen := len(rows)
-	paramIds := make([]uint64, 0, rowLen)
-	for k := range rows {
-		paramIds = append(paramIds, rows[k].ParamId)
-	}
-
-	getContents, _ := param_value.GetContentsByParamIds(paramIds)
-
 	if ctx.Err() == context.Canceled {
 		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
-	list := make([]*productpb.ParamDetail, 0, rowLen)
+	list := make([]*productpb.ParamDetail, 0, len(rows))
 	for k := range rows {
 		contents := make([]string, 0, 8)
-		if _, ok := getContents[rows[k].ParamId]; ok {
-			contents = getContents[rows[k].ParamId]
+		if len(rows[k].Contents) > 0 {
+			for i := range rows[k].Contents {
+				contents = append(contents, rows[k].Contents[i].Content)
+			}
 		}
-		list = append(list, &productpb.ParamDetail{
-			ParamId:   rows[k].ParamId,
-			StoreId:   rows[k].StoreId,
-			KindId:    rows[k].KindId,
-			Name:      rows[k].Name,
-			Type:      productpb.ParamType(rows[k].Type),
-			Sort:      rows[k].Sort,
-			CreatedBy: rows[k].CreatedBy,
-			UpdatedBy: rows[k].UpdatedBy,
-			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
-			UpdatedAt: rows[k].UpdatedAt.Format(utils.TIME_STD_FORMART),
-			Contents:  contents,
-		})
+
+		buf1, _ := jsonLib.Marshal(rows[k])
+		buf2 := &productpb.ParamDetail{}
+		_ = jsonLib.Unmarshal(buf1, buf2)
+		buf2.Contents = contents
+		list = append(list, buf2)
 	}
 
 	return &productpb.ListParamRes{
 		Total:  total,
 		Params: list,
+	}, nil
+}
+
+func (p *Param) GetBindParamAll(ctx context.Context, req *productpb.BindParamAllReq) (*productpb.BindParamAllRes, error) {
+	rows := make([]struct {
+		ParamId uint64
+		Name    string
+	}, 0, 32)
+
+	query := db.Conn.Table(param.GetTableName()).Select("param_id, name").Where("kind_id = 0")
+
+	if len(req.Name) > 0 {
+		query = query.Where("name like ?", req.Name+"%")
+	}
+
+	query.Scan(&rows)
+
+	rowLen := len(rows)
+	if rowLen == 0 {
+		return nil, nil
+	}
+
+	list := make([]*productpb.BindParamAll, 0, rowLen)
+	for k := range rows {
+		list = append(list, &productpb.BindParamAll{
+			ParamId: rows[k].ParamId,
+			Name:    rows[k].Name,
+		})
+	}
+
+	return &productpb.BindParamAllRes{
+		Data: list,
 	}, nil
 }
