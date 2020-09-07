@@ -186,7 +186,7 @@ func (k *Kind) BindParam(ctx context.Context, req *productpb.BindParamReq) (*bas
 	existParamIds := make([]struct{ ParamId uint64 }, 0, len(req.ParamIds))
 	db.Conn.Table(param.GetTableName()).
 		Select("param_id").
-		Where("param_id in (?) and kind_id > 0", req.ParamIds).
+		Where("param_id in (?) and kind_id not in (?)", req.ParamIds, []uint64{0, req.KindId}).
 		Scan(&existParamIds)
 
 	if len(existParamIds) > 0 {
@@ -251,7 +251,7 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*basep
 	existSpecIds := make([]struct{ SpecId uint64 }, 0, len(req.SpecIds))
 	db.Conn.Table(param.GetTableName()).
 		Select("spec_id").
-		Where("spec_id in (?) and kind_id > 0", req.SpecIds).
+		Where("spec_id in (?) and kind_id not in (?)", req.SpecIds, []uint64{0, req.KindId}).
 		Scan(&existSpecIds)
 
 	if len(existSpecIds) > 0 {
