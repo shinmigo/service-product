@@ -249,7 +249,7 @@ func (k *Kind) BindSpec(ctx context.Context, req *productpb.BindSpecReq) (*basep
 	}
 
 	existSpecIds := make([]struct{ SpecId uint64 }, 0, len(req.SpecIds))
-	db.Conn.Table(param.GetTableName()).
+	db.Conn.Table(spec.GetTableName()).
 		Select("spec_id").
 		Where("spec_id in (?) and kind_id not in (?)", req.SpecIds, []uint64{0, req.KindId}).
 		Scan(&existSpecIds)
