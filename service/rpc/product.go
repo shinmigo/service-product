@@ -342,9 +342,15 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 				Value:   param.ParamValue,
 			})
 		}
+		path := make([]string, 0, 8)
+		if len(products[i].Category.Path) > 0 {
+			path = strings.Split(products[i].Category.Path, ",")
+		}
+
 		productDetails = append(productDetails, &productpb.ProductDetail{
 			ProductId:        products[i].ProductId,
 			CategoryId:       products[i].CategoryId,
+			CategoryPath:     path,
 			KindId:           products[i].KindId,
 			Name:             products[i].Name,
 			ShortDescription: products[i].ShortDescription,
