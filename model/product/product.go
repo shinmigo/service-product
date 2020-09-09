@@ -42,6 +42,10 @@ type Product struct {
 	ProductSpec      []product_spec.ProductSpec   `gorm:"foreignkey:ProductId"`
 }
 
+func GetTableName() string {
+	return "product"
+}
+
 func GetField() []string {
 	return []string{
 		"product_id", "category_id", "kind_id", "image", "name", "spec_type", "price", "unit", "short_description", "description", "status",

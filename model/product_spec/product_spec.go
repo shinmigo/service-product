@@ -1,32 +1,58 @@
 package product_spec
 
 import (
+	"fmt"
+
+	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
 
 	"github.com/jinzhu/gorm"
 )
 
 type ProductSpec struct {
-	ProductSpecId uint64 `gorm:"PRIMARY_KEY"`
-	ProductId     uint64
-	Sku           string
-	Image         string
-	Price         float64
-	OldPrice      float64
-	CostPrice     float64
-	Stock         uint64
-	Weight        float64
-	Volume        float64
-	Spec          string
-	CreatedBy     uint64
-	UpdatedBy     uint64
-	CreatedAt     utils.JSONTime
-	UpdatedAt     utils.JSONTime
-	DeletedAt     *utils.JSONTime
+	ProductSpecId uint64          `gorm:"PRIMARY_KEY" json:"product_spec_id"`
+	ProductId     uint64          `json:"product_id"`
+	Sku           string          `json:"sku"`
+	Image         string          `json:"image"`
+	Price         float64         `json:"price"`
+	OldPrice      float64         `json:"old_price"`
+	CostPrice     float64         `json:"cost_price"`
+	Stock         uint64          `json:"stock"`
+	Weight        float64         `json:"weight"`
+	Volume        float64         `json:"volume"`
+	Spec          string          `json:"spec"`
+	CreatedBy     uint64          `json:"-"`
+	UpdatedBy     uint64          `json:"-"`
+	CreatedAt     utils.JSONTime  `json:"-"`
+	UpdatedAt     utils.JSONTime  `json:"-"`
+	DeletedAt     *utils.JSONTime `json:"-"`
 }
 
 func GetTableName() string {
 	return "product_spec"
+}
+
+func GetField() []string {
+	return []string{
+		"product_spec_id", "product_id", "sku", "image",
+		"price", "old_price", "cost_price", "stock", "weight", "volume", "spec",
+	}
+}
+
+func GetProductSpecListByProductSpecId(productSpecIds []uint64) ([]*ProductSpec, error) {
+	productSpecIdLen := len(productSpecIds)
+	if productSpecIdLen == 0 {
+		return nil, nil
+	}
+	rows := make([]*ProductSpec, 0, productSpecIdLen)
+	err := db.Conn.Table(GetTableName()).
+		Select(GetField()).
+		Where("product_spec_id in (?)", productSpecIds).
+		Find(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("err: %v", err)
+	}
+	return rows, nil
 }
 
 func EditProductSpec(db *gorm.DB, productId uint64, specs []map[string]interface{}) error {
