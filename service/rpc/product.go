@@ -254,17 +254,16 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 			}
 		}
 		specValues = append(specValues, map[string]interface{}{
-			"product_spec_id": req.Spec[i].ProductSpecId,
-			"sku":             req.Spec[i].Sku,
-			"image":           req.Spec[i].Image,
-			"price":           req.Spec[i].Price,
-			"old_price":       req.Spec[i].OldPrice,
-			"cost_price":      req.Spec[i].CostPrice,
-			"stock":           req.Spec[i].Stock,
-			"weight":          req.Spec[i].Weight,
-			"volume":          req.Spec[i].Volume,
-			"spec":            spec.String(),
-			"admin_id":        req.AdminId,
+			"sku":        req.Spec[i].Sku,
+			"image":      req.Spec[i].Image,
+			"price":      req.Spec[i].Price,
+			"old_price":  req.Spec[i].OldPrice,
+			"cost_price": req.Spec[i].CostPrice,
+			"stock":      req.Spec[i].Stock,
+			"weight":     req.Spec[i].Weight,
+			"volume":     req.Spec[i].Volume,
+			"spec":       spec.String(),
+			"admin_id":   req.AdminId,
 		})
 	}
 	if err = product_spec.EditProductSpec(tx, req.ProductId, specValues); err != nil {
@@ -323,16 +322,15 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 				specValueId = append(specValueId, uint64(com.StrTo(id).MustInt64()))
 			}
 			specs = append(specs, &productpb.ProductSpec{
-				Image:         spec.Image,
-				Price:         spec.Price,
-				OldPrice:      spec.OldPrice,
-				CostPrice:     spec.CostPrice,
-				Stock:         spec.Stock,
-				Sku:           spec.Sku,
-				Weight:        spec.Weight,
-				Volume:        spec.Volume,
-				SpecValueId:   specValueId,
-				ProductSpecId: spec.ProductSpecId,
+				Image:       spec.Image,
+				Price:       spec.Price,
+				OldPrice:    spec.OldPrice,
+				CostPrice:   spec.CostPrice,
+				Stock:       spec.Stock,
+				Sku:         spec.Sku,
+				Weight:      spec.Weight,
+				Volume:      spec.Volume,
+				SpecValueId: specValueId,
 			})
 		}
 
