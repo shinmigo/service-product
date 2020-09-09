@@ -57,13 +57,14 @@ func GetProductSpecListByProductSpecId(productSpecIds []uint64) ([]*ProductSpec,
 
 func EditProductSpec(db *gorm.DB, productId uint64, specs []map[string]interface{}) error {
 	var (
-		err     error
-		specIds = make([]uint64, 0, 8)
+		err         error
+		specIds     = make([]uint64, 0, 8)
+		productSpec ProductSpec
 	)
 
 	for _, spec := range specs {
 		if spec["product_spec_id"].(uint64) == 0 {
-			err = db.Create(&ProductSpec{
+			productSpec = ProductSpec{
 				ProductId: productId,
 				Sku:       spec["sku"].(string),
 				Image:     spec["image"].(string),
@@ -76,7 +77,9 @@ func EditProductSpec(db *gorm.DB, productId uint64, specs []map[string]interface
 				Spec:      spec["spec"].(string),
 				CreatedBy: spec["admin_id"].(uint64),
 				UpdatedBy: spec["admin_id"].(uint64),
-			}).Error
+			}
+			err = db.Create(&productSpec).Error
+			specIds = append(specIds, productSpec.ProductSpecId)
 		} else {
 			specIds = append(specIds, spec["product_spec_id"].(uint64))
 			spec["updated_by"] = spec["admin_id"]
