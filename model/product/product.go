@@ -63,8 +63,8 @@ func ExistProductByCategoriesId(ids []uint64) bool {
 	return product.ProductId > 0
 }
 
-func EditProduct(product map[string]interface{}) error {
-	err := db.Conn.Model(&Product{}).Where("product_id = ?", product["product_id"]).Update(product).Error
+func EditProduct(db *gorm.DB, product map[string]interface{}) error {
+	err := db.Model(&Product{}).Where("product_id = ?", product["product_id"]).Update(product).Error
 
 	return err
 }

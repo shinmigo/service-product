@@ -220,7 +220,7 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		"status":            req.Status,
 		"updated_by":        req.AdminId,
 	}
-	if err = product.EditProduct(productMap); err != nil {
+	if err = product.EditProduct(tx, productMap); err != nil {
 		return nil, err
 	}
 
