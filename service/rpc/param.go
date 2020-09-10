@@ -162,9 +162,6 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.Param) (*basepb.An
 
 func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*basepb.AnyRes, error) {
 	var err error
-	if _, err = param.GetOneByParamId(req.ParamId); err != nil {
-		return nil, err
-	}
 	tx := db.Conn.Begin()
 	if err = tx.Error; err != nil {
 		return nil, err
@@ -181,11 +178,11 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*base
 		}
 	}()
 
-	if err = tx.Table(param.GetTableName()).Delete(param.Param{ParamId: req.ParamId}).Error; err != nil {
+	if err = tx.Table(param.GetTableName()).Where("param_id in (?)", req.ParamId).Delete(param.Param{}).Error; err != nil {
 		return nil, err
 	}
 
-	if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", req.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
+	if err = tx.Table(param_value.GetTableName()).Where("param_id in (?)", req.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -198,7 +195,7 @@ func (p *Param) DelParam(ctx context.Context, req *productpb.DelParamReq) (*base
 	}
 
 	return &basepb.AnyRes{
-		Id:    req.ParamId,
+		Id:    req.ParamId[0],
 		State: 1,
 	}, nil
 }

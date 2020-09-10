@@ -73,10 +73,6 @@ func (k *Kind) EditKind(ctx context.Context, req *productpb.Kind) (*basepb.AnyRe
 
 func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*basepb.AnyRes, error) {
 	var err error
-	if _, err = kind.GetOneByKindId(req.KindId); err != nil {
-		return nil, err
-	}
-
 	tx := db.Conn.Begin()
 	if err = tx.Error; err != nil {
 		return nil, err
@@ -93,15 +89,15 @@ func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*basepb.
 		}
 	}()
 
-	if err = tx.Table(param.GetTableName()).Where("kind_id = ?", req.KindId).Update("kind_id", 0).Error; err != nil {
+	if err = tx.Table(param.GetTableName()).Where("kind_id in (?)", req.KindId).Update("kind_id", 0).Error; err != nil {
 		return nil, err
 	}
 
-	if err = tx.Table(spec.GetTableName()).Where("kind_id = ?", req.KindId).Update("kind_id", 0).Error; err != nil {
+	if err = tx.Table(spec.GetTableName()).Where("kind_id in (?)", req.KindId).Update("kind_id", 0).Error; err != nil {
 		return nil, err
 	}
 
-	if err := tx.Table(kind.GetTableName()).Delete(&kind.Kind{KindId: req.KindId}).Error; err != nil {
+	if err := tx.Table(kind.GetTableName()).Where("kind_id in (?)", req.KindId).Delete(&kind.Kind{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -114,7 +110,7 @@ func (k *Kind) DelKind(ctx context.Context, req *productpb.DelKindReq) (*basepb.
 	}
 
 	return &basepb.AnyRes{
-		Id:    req.KindId,
+		Id:    req.KindId[0],
 		State: 1,
 	}, nil
 }

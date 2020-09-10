@@ -161,11 +161,6 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRe
 
 func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.AnyRes, error) {
 	var err error
-	var specInfo *spec.Spec
-	if specInfo, err = spec.GetOneBySpecId(req.SpecId, req.StoreId); err != nil {
-		return nil, err
-	}
-
 	tx := db.Conn.Begin()
 	if err = tx.Error; err != nil {
 		return nil, err
@@ -182,11 +177,11 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.
 		}
 	}()
 
-	if err = tx.Table(spec.GetTableName()).Delete(&spec.Spec{SpecId: specInfo.SpecId}).Error; err != nil {
+	if err = tx.Table(spec.GetTableName()).Where("spec_id in (?) AND store_id = ?", req.SpecId, req.StoreId).Delete(&spec.Spec{}).Error; err != nil {
 		return nil, err
 	}
 
-	if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
+	if err = tx.Table(spec_value.GetTableName()).Where("spec_id in (?)", req.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -199,7 +194,7 @@ func (s *Spec) DelSpec(ctx context.Context, req *productpb.DelSpecReq) (*basepb.
 	}
 
 	return &basepb.AnyRes{
-		Id:    req.SpecId,
+		Id:    req.SpecId[0],
 		State: 1,
 	}, nil
 }

@@ -71,11 +71,7 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, 
 }
 
 func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*basepb.AnyRes, error) {
-	if _, err := tag.GetOneByTagId(req.TagId); err != nil {
-		return nil, err
-	}
-
-	if err := db.Conn.Table(tag.GetTableName()).Delete(&tag.Tag{TagId: req.TagId}).Error; err != nil {
+	if err := db.Conn.Table(tag.GetTableName()).Where("tag_id in (?)", req.TagId).Delete(&tag.Tag{}).Error; err != nil {
 		return nil, err
 	}
 
@@ -84,7 +80,7 @@ func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*basepb.Any
 	}
 
 	return &basepb.AnyRes{
-		Id:    req.TagId,
+		Id:    req.TagId[0],
 		State: 1,
 	}, nil
 }
