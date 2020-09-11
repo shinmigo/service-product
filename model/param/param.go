@@ -65,12 +65,11 @@ func GetParamList(paramId uint64, paramName string, page, pageSize uint64) ([]*P
 		query = query.Where("name like ?", "%"+paramName+"%")
 	}
 
-	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	query.Count(&total)
+	err := query.Order("param_id desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
 	if err != nil {
 		return nil, total, err
 	}
-
-	query.Count(&total)
 
 	return rows, total, nil
 }

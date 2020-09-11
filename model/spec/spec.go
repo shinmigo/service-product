@@ -63,11 +63,11 @@ func GetSpecList(specId uint64, specName string, page, pageSize, storeId uint64)
 		query = query.Where("name like ?", "%"+specName+"%")
 	}
 
-	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	query.Count(&total)
+	err := query.Order("spec_id desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
 	if err != nil {
 		return nil, total, err
 	}
-	query.Count(&total)
 
 	return rows, total, nil
 }

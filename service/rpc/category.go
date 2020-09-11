@@ -172,13 +172,12 @@ func (c *Category) EditCategoryStatus(ctx context.Context, req *productpb.EditCa
 	}, nil
 }
 
-func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryReq) (*basepb.AnyRes, error) {
+func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryReq) (list *basepb.AnyRes, err error) {
 	//存在子目录是类目不能删除
 	var (
 		count       int
 		categories  []*category.Category
 		parentCount = make(map[uint64]uint64)
-		err         error
 	)
 	db.Conn.Model(&category.Category{}).Where("parent_id in (?)", req.CategoryId).Count(&count)
 	if count > 0 {
@@ -224,10 +223,8 @@ func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryRe
 
 	tx.Commit()
 
-	return &basepb.AnyRes{
-		Id:    0,
-		State: 1,
-	}, nil
+	list = &basepb.AnyRes{Id: 0, State: 1}
+	return
 }
 
 func (c *Category) GetCategoryList(ctx context.Context, req *productpb.ListCategoryReq) (*productpb.ListCategoryRes, error) {

@@ -70,12 +70,11 @@ func GetTagList(tagId uint64, tagName string, page, pageSize uint64) ([]*Tag, ui
 		query = query.Where("name like ?", "%"+tagName+"%")
 	}
 
-	err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	query.Count(&total)
+	err := query.Order("tag_id desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
 	if err != nil {
 		return nil, total, err
 	}
-
-	query.Count(&total)
 
 	return rows, total, nil
 }

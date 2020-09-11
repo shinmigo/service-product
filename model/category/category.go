@@ -133,6 +133,7 @@ func GetCategories(req *productpb.ListCategoryReq) ([]*Category, uint64, error) 
 	}
 
 	err := query.Scopes(conditions...).
+		Order("category_id desc").
 		Offset((req.Page - 1) * req.PageSize).
 		Limit(req.PageSize).Find(&rows).Error
 
