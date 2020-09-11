@@ -85,8 +85,11 @@ func (c *Category) EditCategory(ctx context.Context, req *productpb.Category) (*
 		if parentCategory, err = category.GetOneByCategoryId(req.ParentId, req.StoreId); err != nil {
 			return nil, err
 		}
-		path = parentCategory.Path
+		path = parentCategory.Path + "," + com.ToStr(req.CategoryId)
+	} else {
+		path = com.ToStr(req.CategoryId)
 	}
+
 	if oldCategory, err = category.GetOneByCategoryId(req.CategoryId, req.StoreId); err != nil {
 		return nil, err
 	}
@@ -129,9 +132,6 @@ func (c *Category) EditCategory(ctx context.Context, req *productpb.Category) (*
 				Error; err != nil {
 				return nil, err
 			}
-			path += "," + com.ToStr(req.CategoryId)
-		} else {
-			path = com.ToStr(req.CategoryId)
 		}
 
 		if err = tx.Model(category.Category{}).Where("category_id = ?", req.CategoryId).
