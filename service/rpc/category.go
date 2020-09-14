@@ -181,12 +181,12 @@ func (c *Category) DelCategory(ctx context.Context, req *productpb.DelCategoryRe
 	)
 	db.Conn.Model(&category.Category{}).Where("parent_id in (?)", req.CategoryId).Count(&count)
 	if count > 0 {
-		return nil, errors.New("some category exist children")
+		return nil, errors.New("分类下还有子分类！")
 	}
 
 	//存在商品的类目不能删除
 	if product.ExistProductByCategoriesId(req.CategoryId) {
-		return nil, errors.New("some category exist products")
+		return nil, errors.New("分类下还存在商品！")
 	}
 
 	tx := db.Conn.Begin()
