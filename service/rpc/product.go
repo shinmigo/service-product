@@ -82,8 +82,6 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		ShortDescription: req.ShortDescription,
 		Description:      req.Description,
 		Status:           req.Status,
-		SpecDescription:  req.SpecDescription,
-		ParamDescription: req.ParamDescription,
 		CreatedBy:        req.AdminId,
 		UpdatedBy:        req.AdminId,
 	}
@@ -225,8 +223,6 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		"short_description": req.ShortDescription,
 		"description":       req.Description,
 		"status":            req.Status,
-		"spec_description":  req.SpecDescription,
-		"param_description": req.ParamDescription,
 		"updated_by":        req.AdminId,
 	}
 	if err = product.EditProduct(tx, productMap); err != nil {
