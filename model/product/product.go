@@ -29,8 +29,6 @@ type Product struct {
 	ShortDescription string
 	Description      string
 	Status           productpb.ProductStatus
-	SpecDescription  string
-	ParamDescription string
 	CreatedBy        uint64
 	UpdatedBy        uint64
 	CreatedAt        utils.JSONTime
@@ -50,7 +48,7 @@ func GetTableName() string {
 
 func GetField() []string {
 	return []string{
-		"product_id", "category_id", "kind_id", "image", "name", "spec_type", "price", "unit", "short_description", "description", "status", "spec_description", "param_description",
+		"product_id", "category_id", "kind_id", "image", "name", "spec_type", "price", "unit", "short_description", "description", "status",
 	}
 }
 
