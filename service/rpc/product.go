@@ -3,8 +3,13 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"goshop/service-product/model/param_value"
+	"goshop/service-product/model/spec"
+	"goshop/service-product/model/spec_value"
+	"strconv"
 	"strings"
 
 	"goshop/service-product/model/category"
@@ -70,6 +75,121 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		return nil, errors.New("商品参数不存在")
 	}
 
+	//处理spec_description
+	specValueIdList := make([]uint64, 0, 8)
+	for i := range req.Spec {
+		for k := range req.Spec[i].SpecValueId {
+			specValueIdList = append(specValueIdList, req.Spec[i].SpecValueId[k])
+		}
+	}
+	specValueList := make([]*spec_value.SpecValue, 0, 8)
+	err = tx.Table(spec_value.GetTableName()).Select([]string{"spec_value_id", "spec_id", "content"}).
+		Where("spec_value_id in (?)", specValueIdList).Find(&specValueList).Error
+	if err != nil {
+		return nil, err
+	}
+	specValueListLen := len(specValueList)
+	specIdList := make([]uint64, 0, 8)
+	specValueIdMap := make(map[uint64]*spec_value.SpecValue, specValueListLen)
+	for i := range specValueList {
+		specIdList = append(specIdList, specValueList[i].SpecId)
+
+		specValueIdMap[specValueList[i].SpecValueId] = &spec_value.SpecValue{
+			SpecValueId: specValueList[i].SpecValueId,
+			SpecId:      specValueList[i].SpecId,
+			Content:     specValueList[i].Content,
+		}
+	}
+	specList := make([]*spec.Spec, 0, len(specIdList))
+	err = tx.Table(spec.GetTableName()).Select([]string{"spec_id", "name"}).
+		Where("spec_id in (?)", specIdList).Find(&specList).Error
+	if err != nil {
+		return nil, err
+	}
+	specIdMap := make(map[uint64]string, len(specIdList))
+	for i := range specList {
+		specIdMap[specList[i].SpecId] = specList[i].Name
+	}
+	specDescriptionList := make([]*spec_value.SpecDescription, 0, len(specValueIdList))
+	for i := range specValueIdList {
+		value, ok := specValueIdMap[specValueIdList[i]]
+		if !ok {
+			continue
+		}
+		name, ok := specIdMap[value.SpecId]
+		if !ok {
+			continue
+		}
+
+		specDescriptionList = append(specDescriptionList, &spec_value.SpecDescription{
+			SpecId:      value.SpecId,
+			Name:        name,
+			SpecValueId: specValueIdList[i],
+			Content:     value.Content,
+		})
+	}
+	specDesByte, err := json.Marshal(specDescriptionList)
+	if err != nil {
+		return nil, err
+	}
+
+	//处理param_description
+	paramLen := len(req.Param)
+	paramMap := make(map[uint64]string, paramLen)
+	paramValueMap := make(map[uint64]string, paramLen)
+	paramIdList := make([]uint64, 0, paramLen)
+	paramValueIdList := make([]string, 0, paramLen)
+	for i := range req.Param {
+		paramIdList = append(paramIdList, req.Param[i].ParamId)
+		paramValueIdList = append(paramValueIdList, req.Param[i].Value)
+	}
+
+	paramList := make([]*param.Param, paramLen)
+	err = tx.Table(param.GetTableName()).Select([]string{"param_id", "name"}).
+		Where("param_id in (?)", paramIdList).Find(&paramList).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range paramList {
+		paramMap[paramList[i].ParamId] = paramList[i].Name
+	}
+	paramValueList := make([]*param_value.ParamValue, paramLen)
+	err = tx.Table(param_value.GetTableName()).Select([]string{"param_value_id", "content"}).
+		Where("param_value_id in (?)", paramValueIdList).Find(&paramValueList).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range paramValueList {
+		paramValueMap[paramValueList[i].ParamValueId] = paramValueList[i].Content
+	}
+
+	paramDescriptionList := make([]*product_param.ParamDescription, 0, paramLen)
+	for i := range req.Param {
+		paramName, ok := paramMap[req.Param[i].ParamId]
+		if !ok {
+			continue
+		}
+		intValue, err := strconv.Atoi(req.Param[i].Value)
+		if err != nil {
+			continue
+		}
+		content, ok := paramValueMap[uint64(intValue)]
+		if !ok {
+			continue
+		}
+
+		paramDescriptionList = append(paramDescriptionList, &product_param.ParamDescription{
+			ParamId:    req.Param[i].ParamId,
+			ParamName:  paramName,
+			ParamValue: req.Param[i].Value,
+			Content:    content,
+		})
+	}
+	paramDesByte, err := json.Marshal(paramDescriptionList)
+	if err != nil {
+		return nil, err
+	}
+
 	product := product.Product{
 		StoreId:          req.StoreId,
 		CategoryId:       req.CategoryId,
@@ -81,6 +201,8 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		Unit:             req.Unit,
 		ShortDescription: req.ShortDescription,
 		Description:      req.Description,
+		SpecDescription:  string(specDesByte),
+		ParamDescription: string(paramDesByte),
 		Status:           req.Status,
 		CreatedBy:        req.AdminId,
 		UpdatedBy:        req.AdminId,
@@ -209,6 +331,121 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		return nil, errors.New("商品参数不存在")
 	}
 
+	//处理spec_description
+	specValueIdList := make([]uint64, 0, 8)
+	for i := range req.Spec {
+		for k := range req.Spec[i].SpecValueId {
+			specValueIdList = append(specValueIdList, req.Spec[i].SpecValueId[k])
+		}
+	}
+	specValueList := make([]*spec_value.SpecValue, 0, 8)
+	err = tx.Table(spec_value.GetTableName()).Select([]string{"spec_value_id", "spec_id", "content"}).
+		Where("spec_value_id in (?)", specValueIdList).Find(&specValueList).Error
+	if err != nil {
+		return nil, err
+	}
+	specValueListLen := len(specValueList)
+	specIdList := make([]uint64, 0, 8)
+	specValueIdMap := make(map[uint64]*spec_value.SpecValue, specValueListLen)
+	for i := range specValueList {
+		specIdList = append(specIdList, specValueList[i].SpecId)
+
+		specValueIdMap[specValueList[i].SpecValueId] = &spec_value.SpecValue{
+			SpecValueId: specValueList[i].SpecValueId,
+			SpecId:      specValueList[i].SpecId,
+			Content:     specValueList[i].Content,
+		}
+	}
+	specList := make([]*spec.Spec, 0, len(specIdList))
+	err = tx.Table(spec.GetTableName()).Select([]string{"spec_id", "name"}).
+		Where("spec_id in (?)", specIdList).Find(&specList).Error
+	if err != nil {
+		return nil, err
+	}
+	specIdMap := make(map[uint64]string, len(specIdList))
+	for i := range specList {
+		specIdMap[specList[i].SpecId] = specList[i].Name
+	}
+	specDescriptionList := make([]*spec_value.SpecDescription, 0, len(specValueIdList))
+	for i := range specValueIdList {
+		value, ok := specValueIdMap[specValueIdList[i]]
+		if !ok {
+			continue
+		}
+		name, ok := specIdMap[value.SpecId]
+		if !ok {
+			continue
+		}
+
+		specDescriptionList = append(specDescriptionList, &spec_value.SpecDescription{
+			SpecId:      value.SpecId,
+			Name:        name,
+			SpecValueId: specValueIdList[i],
+			Content:     value.Content,
+		})
+	}
+	specDesByte, err := json.Marshal(specDescriptionList)
+	if err != nil {
+		return nil, err
+	}
+
+	//处理param_description
+	paramLen := len(req.Param)
+	paramMap := make(map[uint64]string, paramLen)
+	paramValueMap := make(map[uint64]string, paramLen)
+	paramIdList := make([]uint64, 0, paramLen)
+	paramValueIdList := make([]string, 0, paramLen)
+	for i := range req.Param {
+		paramIdList = append(paramIdList, req.Param[i].ParamId)
+		paramValueIdList = append(paramValueIdList, req.Param[i].Value)
+	}
+
+	paramList := make([]*param.Param, paramLen)
+	err = tx.Table(param.GetTableName()).Select([]string{"param_id", "name"}).
+		Where("param_id in (?)", paramIdList).Find(&paramList).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range paramList {
+		paramMap[paramList[i].ParamId] = paramList[i].Name
+	}
+	paramValueList := make([]*param_value.ParamValue, paramLen)
+	err = tx.Table(param_value.GetTableName()).Select([]string{"param_value_id", "content"}).
+		Where("param_value_id in (?)", paramValueIdList).Find(&paramValueList).Error
+	if err != nil {
+		return nil, err
+	}
+	for i := range paramValueList {
+		paramValueMap[paramValueList[i].ParamValueId] = paramValueList[i].Content
+	}
+
+	paramDescriptionList := make([]*product_param.ParamDescription, 0, paramLen)
+	for i := range req.Param {
+		paramName, ok := paramMap[req.Param[i].ParamId]
+		if !ok {
+			continue
+		}
+		intValue, err := strconv.Atoi(req.Param[i].Value)
+		if err != nil {
+			continue
+		}
+		content, ok := paramValueMap[uint64(intValue)]
+		if !ok {
+			continue
+		}
+
+		paramDescriptionList = append(paramDescriptionList, &product_param.ParamDescription{
+			ParamId:    req.Param[i].ParamId,
+			ParamName:  paramName,
+			ParamValue: req.Param[i].Value,
+			Content:    content,
+		})
+	}
+	paramDesByte, err := json.Marshal(paramDescriptionList)
+	if err != nil {
+		return nil, err
+	}
+
 	//商品
 	productMap := map[string]interface{}{
 		"product_id":        req.ProductId,
@@ -222,6 +459,8 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		"unit":              req.Unit,
 		"short_description": req.ShortDescription,
 		"description":       req.Description,
+		"spec_description":  string(specDesByte),
+		"param_description": string(paramDesByte),
 		"status":            req.Status,
 		"updated_by":        req.AdminId,
 	}
@@ -374,6 +613,8 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 			CategoryName:     products[i].Category.Name,
 			KindName:         products[i].Kind.Name,
 			Price:            products[i].Price,
+			SpecDescription:  products[i].SpecDescription,
+			ParamDescription: products[i].ParamDescription,
 		})
 	}
 

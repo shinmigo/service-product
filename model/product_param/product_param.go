@@ -9,6 +9,13 @@ type ProductParam struct {
 	ParamValue     string
 }
 
+type ParamDescription struct {
+	ParamId    uint64 `json:"param_id"`
+	ParamName  string `json:"param_name"`
+	ParamValue string `json:"param_value"`
+	Content    string `json:"content"`
+}
+
 func GetTableName() string {
 	return "product_param"
 }

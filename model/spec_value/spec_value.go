@@ -20,6 +20,13 @@ type SpecValue struct {
 	UpdatedAt   utils.JSONTime
 }
 
+type SpecDescription struct {
+	SpecId      uint64 `json:"spec_id"`
+	Name        string `json:"name"`
+	SpecValueId uint64 `json:"spec_value_id"`
+	Content     string `json:"content"`
+}
+
 type SpecContent struct {
 	SpecId  uint64 `json:"spec_id"`
 	Content string `json:"content"`
