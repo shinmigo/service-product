@@ -226,17 +226,21 @@ func (p *Param) GetParamList(ctx context.Context, req *productpb.ListParamReq) (
 
 	list := make([]*productpb.ParamDetail, 0, len(rows))
 	for k := range rows {
-		contents := make([]string, 0, 8)
+		paramValueList := make([]*productpb.ParamValue, 0, 8)
 		if len(rows[k].Contents) > 0 {
 			for i := range rows[k].Contents {
-				contents = append(contents, rows[k].Contents[i].Content)
+				buf := &productpb.ParamValue{
+					ParamValueId: rows[k].Contents[i].ParamValueId,
+					Content:      rows[k].Contents[i].Content,
+				}
+				paramValueList = append(paramValueList, buf)
 			}
 		}
 
 		buf1, _ := jsonLib.Marshal(rows[k])
 		buf2 := &productpb.ParamDetail{}
 		_ = jsonLib.Unmarshal(buf1, buf2)
-		buf2.Contents = contents
+		buf2.Contents = paramValueList
 		list = append(list, buf2)
 	}
 

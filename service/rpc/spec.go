@@ -227,17 +227,21 @@ func (s *Spec) GetSpecList(ctx context.Context, req *productpb.ListSpecReq) (*pr
 
 	list := make([]*productpb.SpecDetail, 0, len(rows))
 	for k := range rows {
-		contents := make([]string, 0, 8)
+		specValueList := make([]*productpb.SpecValue, 0, 8)
 		if len(rows[k].Contents) > 0 {
 			for i := range rows[k].Contents {
-				contents = append(contents, rows[k].Contents[i].Content)
+				buf := &productpb.SpecValue{
+					SpecValueId: rows[k].Contents[i].SpecValueId,
+					Content:     rows[k].Contents[i].Content,
+				}
+				specValueList = append(specValueList, buf)
 			}
 		}
 
 		buf1, _ := jsonLib.Marshal(rows[k])
 		buf2 := &productpb.SpecDetail{}
 		_ = jsonLib.Unmarshal(buf1, buf2)
-		buf2.Contents = contents
+		buf2.Contents = specValueList
 		list = append(list, buf2)
 	}
 
