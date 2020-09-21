@@ -100,3 +100,13 @@ func SliceDeleteUint64(val uint64, sliceList []uint64) []uint64 {
 
 	return result
 }
+
+// in_array
+func InArrayForUint64(need uint64, needArr []uint64) bool {
+	for _, v := range needArr {
+		if need == v {
+			return true
+		}
+	}
+	return false
+}

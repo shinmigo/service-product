@@ -122,6 +122,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*ba
 	}
 
 	contentLen := len(req.Contents)
+	newIds := make([]uint64, 0, contentLen)
 	if contentLen > 0 {
 		for k := range req.Contents {
 			if req.Contents[k].ParamValueId > 0 {
@@ -131,6 +132,7 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*ba
 					Update("content", req.Contents[k].Content).Error; err != nil {
 					return nil, err
 				}
+				newIds = append(newIds, req.Contents[k].ParamValueId)
 			} else {
 				// 新增
 				aul := param_value.ParamValue{
@@ -142,10 +144,24 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*ba
 				if err = tx.Table(param_value.GetTableName()).Create(&aul).Error; err != nil {
 					return nil, err
 				}
+				newIds = append(newIds, aul.ParamValueId)
 			}
 		}
 	} else {
 		if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	deleteParamValueIds := make([]uint64, 0, 32)
+	for k := range paramInfo.Contents {
+		if utils.InArrayForUint64(paramInfo.Contents[k].ParamValueId, newIds) == false {
+			deleteParamValueIds = append(deleteParamValueIds, paramInfo.Contents[k].ParamValueId)
+		}
+	}
+
+	if len(deleteParamValueIds) > 0 {
+		if err = tx.Table(param_value.GetTableName()).Where("param_value_id in (?) and param_id = ?", deleteParamValueIds, paramInfo.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
 			return nil, err
 		}
 	}

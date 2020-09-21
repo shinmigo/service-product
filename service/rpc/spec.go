@@ -122,6 +122,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*basep
 	}
 
 	contentLen := len(req.Contents)
+	newIds := make([]uint64, 0, contentLen)
 	if contentLen > 0 {
 		for k := range req.Contents {
 			if req.Contents[k].SpecValueId > 0 {
@@ -131,6 +132,7 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*basep
 					Update("content", req.Contents[k].Content).Error; err != nil {
 					return nil, err
 				}
+				newIds = append(newIds, req.Contents[k].SpecValueId)
 			} else {
 				// 新增
 				aul := spec_value.SpecValue{
@@ -142,11 +144,25 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*basep
 				if err = tx.Table(spec_value.GetTableName()).Create(&aul).Error; err != nil {
 					return nil, err
 				}
+				newIds = append(newIds, aul.SpecValueId)
 			}
 		}
 	} else {
 		// 内容长度等于0 全删了
 		if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	deleteSpecValueIds := make([]uint64, 0, 32)
+	for k := range specInfo.Contents {
+		if utils.InArrayForUint64(specInfo.Contents[k].SpecValueId, newIds) == false {
+			deleteSpecValueIds = append(deleteSpecValueIds, specInfo.Contents[k].SpecValueId)
+		}
+	}
+
+	if len(deleteSpecValueIds) > 0 {
+		if err = tx.Table(spec_value.GetTableName()).Where("spec_value_id in (?) and spec_id = ?", deleteSpecValueIds, specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
 			return nil, err
 		}
 	}
