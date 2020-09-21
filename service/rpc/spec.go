@@ -86,12 +86,13 @@ func (s *Spec) AddSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes
 	}, nil
 }
 
-func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRes, error) {
+func (s *Spec) EditSpec(ctx context.Context, req *productpb.EditSpecReq) (*basepb.AnyRes, error) {
 	var err error
 	var specInfo *spec.Spec
 	if specInfo, err = spec.GetOneBySpecId(req.SpecId, req.StoreId); err != nil {
 		return nil, err
 	}
+
 	tx := db.Conn.Begin()
 	if err = tx.Error; err != nil {
 		return nil, err
@@ -120,27 +121,32 @@ func (s *Spec) EditSpec(ctx context.Context, req *productpb.Spec) (*basepb.AnyRe
 		return nil, err
 	}
 
-	if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
-		return nil, err
-	}
-
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{}
-		now.Time = utils.GetNow()
-		specs := make([]*spec_value.SpecValue, 0, contentLen)
 		for k := range req.Contents {
-			buf := &spec_value.SpecValue{
-				SpecId:    specInfo.SpecId,
-				Content:   req.Contents[k],
-				CreatedBy: specInfo.CreatedBy,
-				UpdatedBy: req.AdminId,
-				CreatedAt: specInfo.CreatedAt,
-				UpdatedAt: now,
+			if req.Contents[k].SpecValueId > 0 {
+				// 更新
+				if err = tx.Table(spec_value.GetTableName()).
+					Where("spec_value_id = ? and spec_id = ?", req.Contents[k].SpecValueId, req.SpecId).
+					Update("content", req.Contents[k].Content).Error; err != nil {
+					return nil, err
+				}
+			} else {
+				// 新增
+				aul := spec_value.SpecValue{
+					SpecId:    req.SpecId,
+					Content:   req.Contents[k].Content,
+					CreatedBy: req.AdminId,
+					UpdatedBy: req.AdminId,
+				}
+				if err = tx.Table(spec_value.GetTableName()).Create(&aul).Error; err != nil {
+					return nil, err
+				}
 			}
-			specs = append(specs, buf)
 		}
-		if err = spec_value.BatchInsert(tx, specs); err != nil {
+	} else {
+		// 内容长度等于0 全删了
+		if err = tx.Table(spec_value.GetTableName()).Where("spec_id = ?", specInfo.SpecId).Delete(spec_value.SpecValue{}).Error; err != nil {
 			return nil, err
 		}
 	}

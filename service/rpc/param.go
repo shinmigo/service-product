@@ -86,7 +86,7 @@ func (p *Param) AddParam(ctx context.Context, req *productpb.Param) (*basepb.Any
 	}, nil
 }
 
-func (p *Param) EditParam(ctx context.Context, req *productpb.Param) (*basepb.AnyRes, error) {
+func (p *Param) EditParam(ctx context.Context, req *productpb.EditParamReq) (*basepb.AnyRes, error) {
 	var err error
 	var paramInfo *param.Param
 	if paramInfo, err = param.GetOneByParamId(req.ParamId); err != nil {
@@ -121,27 +121,31 @@ func (p *Param) EditParam(ctx context.Context, req *productpb.Param) (*basepb.An
 		return nil, err
 	}
 
-	if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
-		return nil, err
-	}
-
 	contentLen := len(req.Contents)
 	if contentLen > 0 {
-		now := utils.JSONTime{}
-		now.Time = utils.GetNow()
-		params := make([]*param_value.ParamValue, 0, contentLen)
 		for k := range req.Contents {
-			buf := &param_value.ParamValue{
-				ParamId:   paramInfo.ParamId,
-				Content:   req.Contents[k],
-				CreatedBy: paramInfo.CreatedBy,
-				UpdatedBy: req.AdminId,
-				CreatedAt: paramInfo.CreatedAt,
-				UpdatedAt: now,
+			if req.Contents[k].ParamValueId > 0 {
+				// 更新
+				if err = tx.Table(param_value.GetTableName()).
+					Where("param_value_id = ? and param_id = ?", req.Contents[k].ParamValueId, req.ParamId).
+					Update("content", req.Contents[k].Content).Error; err != nil {
+					return nil, err
+				}
+			} else {
+				// 新增
+				aul := param_value.ParamValue{
+					ParamId:   req.ParamId,
+					Content:   req.Contents[k].Content,
+					CreatedBy: req.AdminId,
+					UpdatedBy: req.AdminId,
+				}
+				if err = tx.Table(param_value.GetTableName()).Create(&aul).Error; err != nil {
+					return nil, err
+				}
 			}
-			params = append(params, buf)
 		}
-		if err = param_value.BatchInsert(tx, params); err != nil {
+	} else {
+		if err = tx.Table(param_value.GetTableName()).Where("param_id = ?", paramInfo.ParamId).Delete(param_value.ParamValue{}).Error; err != nil {
 			return nil, err
 		}
 	}
