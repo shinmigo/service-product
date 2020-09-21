@@ -5,12 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"strconv"
+	"strings"
+
 	"goshop/service-product/model/param_value"
 	"goshop/service-product/model/spec"
 	"goshop/service-product/model/spec_value"
-	"strconv"
-	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"goshop/service-product/model/category"
 	"goshop/service-product/model/kind"
@@ -23,9 +26,6 @@ import (
 	"goshop/service-product/model/tag"
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/unknwon/com"
 
@@ -535,7 +535,7 @@ func (p *Product) DelProduct(ctx context.Context, req *productpb.DelProductReq) 
 }
 
 func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProductReq) (*productpb.ListProductRes, error) {
-	products, total, err := product.GetProducts(req)
+	products, total, err := product.GetProducts(0, req, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -544,10 +544,36 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
 	}
 
-	var (
-		productDetails = make([]*productpb.ProductDetail, 0, req.PageSize)
-	)
+	productDetails := buildProductDetail(products)
 
+	return &productpb.ListProductRes{
+		Total:    total,
+		Products: productDetails,
+	}, nil
+}
+
+func (p *Product) GetProductListByProductSpecIds(ctx context.Context, req *productpb.ProductSpecIdsReq) (*productpb.ListProductSpecRes, error) {
+	buf := &productpb.ListProductReq{
+		ProductId: req.ProductId,
+	}
+	products, _, err := product.GetProducts(1, buf, req.ProductSpecId)
+	if err != nil {
+		return nil, err
+	}
+
+	if ctx.Err() == context.Canceled {
+		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
+	}
+
+	productDetails := buildProductDetail(products)
+
+	return &productpb.ListProductSpecRes{
+		Products: productDetails,
+	}, nil
+}
+
+func buildProductDetail(products []*product.Product) []*productpb.ProductDetail {
+	productDetails := make([]*productpb.ProductDetail, 0, len(products))
 	for i := range products {
 		var (
 			images []string
@@ -555,6 +581,7 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 			specs  []*productpb.ProductSpec
 			params []*productpb.ProductParam
 		)
+
 		for _, image := range products[i].ProductImage {
 			images = append(images, image.Image)
 		}
@@ -590,6 +617,7 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 				Value:   p.ParamValue,
 			})
 		}
+
 		path := make([]string, 0, 8)
 		if len(products[i].Category.Path) > 0 {
 			path = strings.Split(products[i].Category.Path, ",")
@@ -617,85 +645,5 @@ func (p *Product) GetProductList(ctx context.Context, req *productpb.ListProduct
 			ParamDescription: products[i].ParamDescription,
 		})
 	}
-
-	return &productpb.ListProductRes{
-		Total:    total,
-		Products: productDetails,
-	}, nil
-}
-
-func (p *Product) GetProductListByProductSpecIds(ctx context.Context, req *productpb.ProductSpecIdsReq) (*productpb.ListProductSpecRes, error) {
-	rows, err := product_spec.GetProductSpecListByProductSpecId(req.ProductSpecId)
-	if err != nil {
-		return nil, err
-	}
-
-	rowLen := len(rows)
-	if rowLen == 0 {
-		return nil, fmt.Errorf("找不到规格")
-	}
-
-	productIds := make([]uint64, 0, rowLen)
-	for k := range rows {
-		productIds = append(productIds, rows[k].ProductId)
-	}
-
-	productList := make([]*product.Product, 0, rowLen)
-	if err := db.Conn.Table(product.GetTableName()).
-		Select(product.GetField()).
-		Preload("ProductImage").
-		Preload("ProductTag").
-		Preload("ProductParam").
-		Where("product_id in (?)", productIds).
-		Find(&productList).Error; err != nil {
-		return nil, fmt.Errorf("err: %v", err)
-	}
-
-	if ctx.Err() == context.Canceled {
-		return nil, status.Errorf(codes.Canceled, "The client canceled the request")
-	}
-
-	productListkeyByProductId := map[uint64]*product.Product{}
-	for k := range productList {
-		productListkeyByProductId[productList[k].ProductId] = productList[k]
-	}
-
-	list := make([]*productpb.ListProductSpecRes_ProductSpec, 0, len(rows))
-	for k := range rows {
-		var (
-			images []string
-			tags   []uint64
-			params []*productpb.ProductParam
-		)
-		buf1 := &productpb.ListProductSpecRes_ProductSpec{}
-		buf2 := &productpb.ListProductSpecRes_Product{}
-		if _, ok := productListkeyByProductId[rows[k].ProductId]; ok {
-			buf3, _ := jsonLib.Marshal(productListkeyByProductId[rows[k].ProductId])
-			_ = jsonLib.Unmarshal(buf3, buf2)
-			for _, i := range productListkeyByProductId[rows[k].ProductId].ProductImage {
-				images = append(images, i.Image)
-			}
-			for _, t := range productListkeyByProductId[rows[k].ProductId].ProductTag {
-				tags = append(tags, t.TagId)
-			}
-			for _, p := range productListkeyByProductId[rows[k].ProductId].ProductParam {
-				params = append(params, &productpb.ProductParam{
-					ParamId: p.ParamId,
-					Value:   p.ParamValue,
-				})
-			}
-			buf2.Images = images
-			buf2.Tags = tags
-			buf2.Param = params
-		}
-
-		buf4, _ := jsonLib.Marshal(rows[k])
-		_ = jsonLib.Unmarshal(buf4, buf1)
-		buf1.Product = buf2
-		list = append(list, buf1)
-	}
-
-	return &productpb.ListProductSpecRes{
-		ProductSpecs: list,
-	}, nil
+	return productDetails
 }

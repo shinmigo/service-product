@@ -2,6 +2,7 @@ package product
 
 import (
 	"fmt"
+
 	"goshop/service-product/model/category"
 	"goshop/service-product/model/kind"
 	"goshop/service-product/model/product_image"
@@ -75,17 +76,26 @@ func EditProduct(db *gorm.DB, product map[string]interface{}) error {
 	return err
 }
 
-func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
-	var total uint64
-	rows := make([]*Product, 0, req.PageSize)
+func GetProducts(isAll uint8, req *productpb.ListProductReq, productSpecIds []uint64) (list []*Product, total uint64, err error) {
+	pageSize := uint64(32)
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
+	rows := make([]*Product, 0, pageSize)
 
-	query := db.Conn.Model(Product{}).Select(GetField()).Preload("Category").
+	query := db.Conn.Model(Product{}).Select(GetField()).
+		Preload("Category").
 		Preload("Kind").
 		Preload("ProductImage").
 		Preload("ProductTag").
-		Preload("ProductParam").
-		Preload("ProductSpec").
-		Order("product_id desc")
+		Preload("ProductParam")
+
+	if len(productSpecIds) > 0 {
+		query = query.Preload("ProductSpec", "product_spec_id in (?)", productSpecIds)
+	} else {
+		query = query.Preload("ProductSpec")
+	}
+	query = query.Order("product_id desc")
 
 	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 4)
 	if req.Name != "" {
@@ -94,9 +104,9 @@ func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
 		})
 	}
 
-	if req.Id > 0 {
+	if len(req.ProductId) > 0 {
 		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
-			return db.Where("product_id = ?", req.Id)
+			return db.Where("product_id in (?)", req.ProductId)
 		})
 	}
 
@@ -125,15 +135,20 @@ func GetProducts(req *productpb.ListProductReq) ([]*Product, uint64, error) {
 		})
 	}
 
-	err := query.Scopes(conditions...).
-		Offset((req.Page - 1) * req.PageSize).
-		Limit(req.PageSize).Find(&rows).Error
+	if isAll == 1 {
+		err = query.Scopes(conditions...).Find(&rows).Error
+		total = uint64(len(rows))
+	} else {
+		err = query.Scopes(conditions...).
+			Offset((req.Page - 1) * pageSize).
+			Limit(req.PageSize).Find(&rows).Error
+
+		query.Scopes(conditions...).Count(&total)
+	}
 
 	if err != nil {
 		return nil, 0, fmt.Errorf("err: %v", err)
 	}
-
-	query.Scopes(conditions...).Count(&total)
 
 	return rows, total, nil
 }
