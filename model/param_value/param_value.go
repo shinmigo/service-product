@@ -21,12 +21,6 @@ type ParamValue struct {
 	UpdatedAt    utils.JSONTime
 }
 
-type ParamValueList struct {
-	ParamValueId uint64
-	ParamId      uint64
-	Content      string
-}
-
 type ParamContent struct {
 	ParamId uint64 `json:"param_id"`
 	Content string `json:"content"`

@@ -83,7 +83,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		}
 	}
 
-	specValueList := make([]*spec_value.SpecValueList, 0, 8)
+	specValueList := make([]*spec_value.SpecValue, 0, 8)
 	err = tx.Table(spec_value.GetTableName()).Select([]string{"spec_value_id", "spec_id", "content"}).
 		Where("spec_value_id in (?)", specValueIdList).Find(&specValueList).Error
 	if err != nil {
@@ -91,15 +91,23 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 	}
 	specValueListLen := len(specValueList)
 	specIdList := make([]uint64, 0, 8)
-	specValueIdMap := make(map[uint64]map[uint64]*spec_value.SpecValueList, specValueListLen)
+	specValueIdMap := make(map[uint64]map[uint64]interface{}, specValueListLen)
 	for i := range specValueList {
 		specIdList = append(specIdList, specValueList[i].SpecId)
 
 		if _, ok := specValueIdMap[specValueList[i].SpecId]; ok {
-			specValueIdMap[specValueList[i].SpecId][specValueList[i].SpecValueId] = specValueList[i]
+			specValueIdMap[specValueList[i].SpecId][specValueList[i].SpecValueId] = map[string]interface{}{
+				"spec_value_id": specValueList[i].SpecValueId,
+				"spec_id":       specValueList[i].SpecId,
+				"content":       specValueList[i].Content,
+			}
 		} else {
-			buf := make(map[uint64]*spec_value.SpecValueList)
-			buf[specValueList[i].SpecValueId] = specValueList[i]
+			buf := make(map[uint64]interface{})
+			buf[specValueList[i].SpecValueId] = map[string]interface{}{
+				"spec_value_id": specValueList[i].SpecValueId,
+				"spec_id":       specValueList[i].SpecId,
+				"content":       specValueList[i].Content,
+			}
 			specValueIdMap[specValueList[i].SpecId] = buf
 		}
 	}
@@ -135,7 +143,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 		paramValueIdList = append(paramValueIdList, valueId)
 	}
 
-	paramValueList := make([]*param_value.ParamValueList, 0, 8)
+	paramValueList := make([]*param_value.ParamValue, 0, 8)
 	err = tx.Table(param_value.GetTableName()).Select([]string{"param_value_id", "param_id", "content"}).
 		Where("param_value_id in (?)", paramValueIdList).Find(&paramValueList).Error
 	if err != nil {
@@ -144,15 +152,23 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 
 	paramValueListLen := len(paramValueList)
 	paramIdList := make([]uint64, 0, 8)
-	paramValueIdMap := make(map[uint64]map[uint64]*param_value.ParamValueList, paramValueListLen)
+	paramValueIdMap := make(map[uint64]map[uint64]interface{}, paramValueListLen)
 	for i := range paramValueList {
 		paramIdList = append(paramIdList, paramValueList[i].ParamId)
 
 		if _, ok := paramValueIdMap[paramValueList[i].ParamId]; ok {
-			paramValueIdMap[paramValueList[i].ParamId][paramValueList[i].ParamValueId] = paramValueList[i]
+			paramValueIdMap[paramValueList[i].ParamId][paramValueList[i].ParamValueId] = map[string]interface{}{
+				"param_value_id": paramValueList[i].ParamValueId,
+				"param_id":       paramValueList[i].ParamId,
+				"content":        paramValueList[i].Content,
+			}
 		} else {
-			buf := make(map[uint64]*param_value.ParamValueList)
-			buf[paramValueList[i].ParamValueId] = paramValueList[i]
+			buf := make(map[uint64]interface{})
+			buf[paramValueList[i].ParamValueId] = map[string]interface{}{
+				"param_value_id": paramValueList[i].ParamValueId,
+				"param_id":       paramValueList[i].ParamId,
+				"content":        paramValueList[i].Content,
+			}
 			paramValueIdMap[paramValueList[i].ParamId] = buf
 		}
 	}
@@ -331,7 +347,7 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		}
 	}
 
-	specValueList := make([]*spec_value.SpecValueList, 0, 8)
+	specValueList := make([]*spec_value.SpecValue, 0, 8)
 	err = tx.Table(spec_value.GetTableName()).Select([]string{"spec_value_id", "spec_id", "content"}).
 		Where("spec_value_id in (?)", specValueIdList).Find(&specValueList).Error
 	if err != nil {
@@ -339,18 +355,27 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 	}
 	specValueListLen := len(specValueList)
 	specIdList := make([]uint64, 0, 8)
-	specValueIdMap := make(map[uint64]map[uint64]*spec_value.SpecValueList, specValueListLen)
+	specValueIdMap := make(map[uint64]map[uint64]interface{}, specValueListLen)
 	for i := range specValueList {
 		specIdList = append(specIdList, specValueList[i].SpecId)
 
 		if _, ok := specValueIdMap[specValueList[i].SpecId]; ok {
-			specValueIdMap[specValueList[i].SpecId][specValueList[i].SpecValueId] = specValueList[i]
+			specValueIdMap[specValueList[i].SpecId][specValueList[i].SpecValueId] = map[string]interface{}{
+				"spec_value_id": specValueList[i].SpecValueId,
+				"spec_id":       specValueList[i].SpecId,
+				"content":       specValueList[i].Content,
+			}
 		} else {
-			buf := make(map[uint64]*spec_value.SpecValueList)
-			buf[specValueList[i].SpecValueId] = specValueList[i]
+			buf := make(map[uint64]interface{})
+			buf[specValueList[i].SpecValueId] = map[string]interface{}{
+				"spec_value_id": specValueList[i].SpecValueId,
+				"spec_id":       specValueList[i].SpecId,
+				"content":       specValueList[i].Content,
+			}
 			specValueIdMap[specValueList[i].SpecId] = buf
 		}
 	}
+
 	specList := make([]*spec.Spec, 0, len(specIdList))
 	err = tx.Table(spec.GetTableName()).Select([]string{"spec_id", "name"}).
 		Where("spec_id in (?)", specIdList).Order("sort asc").
@@ -383,7 +408,7 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 		paramValueIdList = append(paramValueIdList, valueId)
 	}
 
-	paramValueList := make([]*param_value.ParamValueList, 0, 8)
+	paramValueList := make([]*param_value.ParamValue, 0, 8)
 	err = tx.Table(param_value.GetTableName()).Select([]string{"param_value_id", "param_id", "content"}).
 		Where("param_value_id in (?)", paramValueIdList).Find(&paramValueList).Error
 	if err != nil {
@@ -392,15 +417,23 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 
 	paramValueListLen := len(paramValueList)
 	paramIdList := make([]uint64, 0, 8)
-	paramValueIdMap := make(map[uint64]map[uint64]*param_value.ParamValueList, paramValueListLen)
+	paramValueIdMap := make(map[uint64]map[uint64]interface{}, paramValueListLen)
 	for i := range paramValueList {
 		paramIdList = append(paramIdList, paramValueList[i].ParamId)
 
 		if _, ok := paramValueIdMap[paramValueList[i].ParamId]; ok {
-			paramValueIdMap[paramValueList[i].ParamId][paramValueList[i].ParamValueId] = paramValueList[i]
+			paramValueIdMap[paramValueList[i].ParamId][paramValueList[i].ParamValueId] = map[string]interface{}{
+				"param_value_id": paramValueList[i].ParamValueId,
+				"param_id":       paramValueList[i].ParamId,
+				"content":        paramValueList[i].Content,
+			}
 		} else {
-			buf := make(map[uint64]*param_value.ParamValueList)
-			buf[paramValueList[i].ParamValueId] = paramValueList[i]
+			buf := make(map[uint64]interface{})
+			buf[paramValueList[i].ParamValueId] = map[string]interface{}{
+				"param_value_id": paramValueList[i].ParamValueId,
+				"param_id":       paramValueList[i].ParamId,
+				"content":        paramValueList[i].Content,
+			}
 			paramValueIdMap[paramValueList[i].ParamId] = buf
 		}
 	}
