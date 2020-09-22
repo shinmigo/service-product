@@ -1,10 +1,11 @@
 package rpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -260,13 +261,12 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 	}
 	var specValues [][]interface{}
 	for i := range req.Spec {
-		var spec bytes.Buffer
+		var specSlice []int
 		for j := range req.Spec[i].SpecValueId {
-			spec.WriteString(com.ToStr(req.Spec[i].SpecValueId[j]))
-			if j < len(req.Spec[i].SpecValueId)-1 {
-				spec.WriteString(",")
-			}
+			specSlice = append(specSlice, int(req.Spec[i].SpecValueId[j]))
 		}
+		sort.Ints(specSlice)
+		specToStr := strings.Replace(strings.Trim(fmt.Sprint(specSlice), "[]"), " ", ",", -1)
 		specValues = append(specValues, []interface{}{
 			product.ProductId,
 			req.Spec[i].Sku,
@@ -277,7 +277,7 @@ func (p *Product) AddProduct(ctx context.Context, req *productpb.Product) (*base
 			req.Spec[i].Stock,
 			req.Spec[i].Weight,
 			req.Spec[i].Volume,
-			spec.String(),
+			specToStr,
 			req.AdminId,
 			req.AdminId,
 			now,
@@ -507,13 +507,12 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 	//商品规格
 	var specValues []map[string]interface{}
 	for i := range req.Spec {
-		var spec bytes.Buffer
+		var specSlice []int
 		for j := range req.Spec[i].SpecValueId {
-			spec.WriteString(com.ToStr(req.Spec[i].SpecValueId[j]))
-			if j < len(req.Spec[i].SpecValueId)-1 {
-				spec.WriteString(",")
-			}
+			specSlice = append(specSlice, int(req.Spec[i].SpecValueId[j]))
 		}
+		sort.Ints(specSlice)
+		specToStr := strings.Replace(strings.Trim(fmt.Sprint(specSlice), "[]"), " ", ",", -1)
 		specValues = append(specValues, map[string]interface{}{
 			"product_spec_id": req.Spec[i].ProductSpecId,
 			"sku":             req.Spec[i].Sku,
@@ -524,7 +523,7 @@ func (p *Product) EditProduct(ctx context.Context, req *productpb.Product) (*bas
 			"stock":           req.Spec[i].Stock,
 			"weight":          req.Spec[i].Weight,
 			"volume":          req.Spec[i].Volume,
-			"spec":            spec.String(),
+			"spec":            specToStr,
 			"admin_id":        req.AdminId,
 		})
 	}
@@ -615,16 +614,17 @@ func buildProductDetail(products []*product.Product) []*productpb.ProductDetail 
 				specValueId = append(specValueId, uint64(com.StrTo(id).MustInt64()))
 			}
 			specs = append(specs, &productpb.ProductSpec{
-				Image:         spec.Image,
-				Price:         spec.Price,
-				OldPrice:      spec.OldPrice,
-				CostPrice:     spec.CostPrice,
-				Stock:         spec.Stock,
-				Sku:           spec.Sku,
-				Weight:        spec.Weight,
-				Volume:        spec.Volume,
-				SpecValueId:   specValueId,
-				ProductSpecId: spec.ProductSpecId,
+				Image:          spec.Image,
+				Price:          spec.Price,
+				OldPrice:       spec.OldPrice,
+				CostPrice:      spec.CostPrice,
+				Stock:          spec.Stock,
+				Sku:            spec.Sku,
+				Weight:         spec.Weight,
+				Volume:         spec.Volume,
+				SpecValueId:    specValueId,
+				SpecValueIdStr: spec.Spec,
+				ProductSpecId:  spec.ProductSpecId,
 			})
 		}
 
