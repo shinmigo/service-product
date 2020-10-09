@@ -135,6 +135,18 @@ func GetProducts(isAll uint8, req *productpb.ListProductReq, productSpecIds []ui
 		})
 	}
 
+	if req.TagId > 0 {
+		var pids []uint64
+		db.Conn.Table(product_tag.GetTableName()).
+			Select("product_id").
+			Where("tag_id = ?", req.TagId).
+			Pluck("product_id", &pids)
+
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("product_id in (?)", pids)
+		})
+	}
+
 	if isAll == 1 {
 		err = query.Scopes(conditions...).Find(&rows).Error
 		total = uint64(len(rows))

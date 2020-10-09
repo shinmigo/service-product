@@ -27,6 +27,8 @@ func (t *Tag) AddTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, e
 	aul := tag.Tag{
 		StoreId:   req.StoreId,
 		Name:      req.Name,
+		Display:   int32(req.Display),
+		Sort:      req.Sort,
 		CreatedBy: req.AdminId,
 		UpdatedBy: req.AdminId,
 	}
@@ -53,6 +55,8 @@ func (t *Tag) EditTag(ctx context.Context, req *productpb.Tag) (*basepb.AnyRes, 
 	aul := tag.Tag{
 		StoreId:   req.StoreId,
 		Name:      req.Name,
+		Display:   int32(req.Display),
+		Sort:      req.Sort,
 		UpdatedBy: req.AdminId,
 	}
 
@@ -86,17 +90,7 @@ func (t *Tag) DelTag(ctx context.Context, req *productpb.DelTagReq) (*basepb.Any
 }
 
 func (t *Tag) GetTagList(ctx context.Context, req *productpb.ListTagReq) (*productpb.ListTagRes, error) {
-	var page uint64 = 1
-	if req.Page > 0 {
-		page = req.Page
-	}
-
-	var pageSize uint64 = 10
-	if req.PageSize > 0 {
-		pageSize = req.PageSize
-	}
-
-	rows, total, err := tag.GetTagList(req.Id, req.Name, page, pageSize)
+	rows, total, err := tag.GetTagList(req)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +105,8 @@ func (t *Tag) GetTagList(ctx context.Context, req *productpb.ListTagReq) (*produ
 			TagId:     rows[k].TagId,
 			StoreId:   rows[k].StoreId,
 			Name:      rows[k].Name,
+			Display:   productpb.TagDisplay(rows[k].Display),
+			Sort:      rows[k].Sort,
 			CreatedBy: rows[k].CreatedBy,
 			UpdatedBy: rows[k].UpdatedBy,
 			CreatedAt: rows[k].CreatedAt.Format(utils.TIME_STD_FORMART),
