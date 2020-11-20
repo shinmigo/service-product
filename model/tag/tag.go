@@ -2,14 +2,21 @@ package tag
 
 import (
 	"fmt"
+
 	"goshop/service-product/pkg/db"
 	"goshop/service-product/pkg/utils"
+
+	"github.com/jinzhu/gorm"
+
+	"github.com/shinmigo/pb/productpb"
 )
 
 type Tag struct {
 	TagId     uint64         `json:"tag_id" gorm:"PRIMARY_KEY"`
 	StoreId   uint64         `json:"store_id"`
 	Name      string         `json:"name"`
+	Display   int32          `json:"display"`
+	Sort      uint64         `json:"sort"`
 	CreatedBy uint64         `json:"created_by"`
 	UpdatedBy uint64         `json:"updated_by"`
 	CreatedAt utils.JSONTime `json:"created_at"`
@@ -22,7 +29,7 @@ func GetTableName() string {
 
 func GetField() []string {
 	return []string{
-		"tag_id", "store_id", "name",
+		"tag_id", "store_id", "name", "display", "sort",
 		"created_by", "updated_by", "created_at", "updated_at",
 	}
 }
@@ -56,25 +63,47 @@ func ExistTagsByIds(ids []uint64) ([]uint64, bool) {
 	return diffIds, len(diffIds) == 0
 }
 
-func GetTagList(tagId uint64, tagName string, page, pageSize uint64) ([]*Tag, uint64, error) {
+func GetTagList(req *productpb.ListTagReq) ([]*Tag, uint64, error) {
 	var total uint64
+
+	var page uint64 = 1
+	if req.Page > 0 {
+		page = req.Page
+	}
+
+	var pageSize uint64 = 10
+	if req.PageSize > 0 {
+		pageSize = req.PageSize
+	}
 
 	rows := make([]*Tag, 0, pageSize)
 
-	query := db.Conn.Table(GetTableName()).Select(GetField())
-	if tagId > 0 {
-		query = query.Where("tag_id = ?", tagId)
+	conditions := make([]func(db *gorm.DB) *gorm.DB, 0, 4)
+	if req.Id > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("tag_id = ?", req.Id)
+		})
 	}
 
-	if tagName != "" {
-		query = query.Where("name like ?", "%"+tagName+"%")
+	if req.Name != "" {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("name like ?", "%"+req.Name+"%")
+		})
 	}
 
-	query.Count(&total)
-	err := query.Order("tag_id desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
+	if req.Display > 0 {
+		conditions = append(conditions, func(db *gorm.DB) *gorm.DB {
+			return db.Where("display = ?", int32(req.Display))
+		})
+	}
+
+	query := db.Conn.Table(GetTableName()).Select(GetField()).Scopes(conditions...)
+
+	err := query.Order("sort desc").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error
 	if err != nil {
 		return nil, total, err
 	}
 
+	query.Count(&total)
 	return rows, total, nil
 }
